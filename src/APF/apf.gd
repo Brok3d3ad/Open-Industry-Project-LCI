@@ -430,8 +430,8 @@ func _compute_target_belt_speed() -> float:
 	var rev: bool = direction_cmd_1 and not direction_cmd_0
 	if not fwd and not rev:
 		return 0.0
-	var scale: float = abs(commanded_velocity) / COMMANDED_VELOCITY_FULL_SCALE
-	var mag: float = scale * float(design_fpm) * FPM_TO_MS
+	var velocity_scale: float = abs(commanded_velocity) / COMMANDED_VELOCITY_FULL_SCALE
+	var mag: float = velocity_scale * float(design_fpm) * FPM_TO_MS
 	return mag if fwd else -mag
 
 
