@@ -9,6 +9,8 @@ extends Node3D
 
 const BUTTON_PRESSED_Y_OFFSET: float = -0.005
 const BUTTON_TWEEN_DURATION: float = 0.08
+const PILOT_OK_COLOR: Color = Color(0, 1, 0, 1)
+const PILOT_TRIPPED_COLOR: Color = Color(1, 0, 0, 1)
 
 ## Text shown on the Label3D mounted above the tensioner neck.
 @export var label_text: String = "EPC":
@@ -41,9 +43,11 @@ const BUTTON_TWEEN_DURATION: float = 0.08
 		channel_2 = value
 
 @onready var _button_cap: Node3D = $EPC/EPC_Root/ButtonCap
+@onready var _pilot_lens: MeshInstance3D = $EPC/EPC_Root/ButtonGater
 @onready var _label: Label3D = $EPC/EPC_Root/TensionerNeck/Label
 
 var _button_cap_initial_y: float = 0.0
+var _pilot_material_made_unique: bool = false
 var _channel_1_tag := OIPCommsTag.new()
 var _channel_2_tag := OIPCommsTag.new()
 
@@ -90,6 +94,7 @@ func _ready() -> void:
 	if _label:
 		_label.text = label_text
 	_update_outputs()
+	_update_pilot_lens()
 
 
 func use() -> void:
@@ -114,6 +119,41 @@ func _update_outputs() -> void:
 	var safe := not tripped
 	channel_1 = safe
 	channel_2 = safe
+	_update_pilot_lens()
+
+
+func _update_pilot_lens() -> void:
+	if not _pilot_lens:
+		return
+	_ensure_pilot_material_unique()
+	var mat := _pilot_lens.get_surface_override_material(0) as StandardMaterial3D
+	if not mat:
+		return
+	var color := PILOT_OK_COLOR if (channel_1 and channel_2) else PILOT_TRIPPED_COLOR
+	mat.albedo_color = color
+	mat.emission = color
+	mat.emission_energy_multiplier = 1.0
+
+
+func _ensure_pilot_material_unique() -> void:
+	if _pilot_material_made_unique or not _pilot_lens:
+		return
+	var current_override := _pilot_lens.get_surface_override_material(0)
+	if current_override:
+		var unique_mat := current_override.duplicate() as Material
+		_pilot_lens.set_surface_override_material(0, unique_mat)
+	else:
+		var base_mat := _pilot_lens.mesh.surface_get_material(0) as StandardMaterial3D
+		if base_mat:
+			var unique_mat := base_mat.duplicate() as Material
+			unique_mat.resource_local_to_scene = true
+			_pilot_lens.set_surface_override_material(0, unique_mat)
+		else:
+			var fresh := StandardMaterial3D.new()
+			fresh.emission_enabled = true
+			fresh.resource_local_to_scene = true
+			_pilot_lens.set_surface_override_material(0, fresh)
+	_pilot_material_made_unique = true
 
 
 func _on_simulation_started() -> void:
