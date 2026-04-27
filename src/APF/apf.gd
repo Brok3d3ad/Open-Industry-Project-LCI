@@ -79,12 +79,13 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 
 ## true when the motor is running. Red when false (drive stopped). Setter
 ## gates: assignment to true is ignored unless ALL of the following hold —
-## `start` (run bit from PLC) is high, `stop` is low, and there is no fault
-## (`fault`, `connection_faulted`, `not disconnect_closed`).
+## `start` (run bit from PLC) is high, `stop` is low, `velocity` is non-zero,
+## and there is no fault (`fault`, `connection_faulted`, `not disconnect_closed`).
 @export var running: bool = false:
 	set(value):
 		var gated: bool = (value
 				and start and not stop
+				and velocity > 0.0
 				and not fault and disconnect_closed and not connection_faulted)
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
@@ -107,13 +108,17 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 		output_voltage = value
 
 ## Reported motor velocity (REAL). Setting velocity also recomputes
-## `output_current = velocity * 2` (per spec).
+## `output_current = velocity * 2` (per spec). When velocity falls to
+## zero the running setter's gate forces `running = false`.
 @export var velocity: float = 30.0:
 	set(value):
 		if _velocity_tag.is_ready() and value != velocity:
 			_velocity_tag.write_float32(value)
 		velocity = value
 		output_current = velocity * 2.0
+		# Re-run the gate against the new velocity. The setter denies if
+		# velocity is 0; otherwise lets through whatever start/stop says.
+		running = start and not stop
 
 ## Generated trip fault code (DINT). Cleared to 0 on `clear_fault` rising edge.
 @export var trip_fault_code: int = 0:
