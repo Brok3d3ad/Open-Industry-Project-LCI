@@ -14,7 +14,6 @@ const PILOT_BAD_COLOR: Color = Color(1, 0, 0, 1)
 const HANDLE_CLOSED_ANGLE: float = PI / 2.0
 const HANDLE_OPEN_ANGLE: float = 0.0
 const HANDLE_TWEEN_DURATION: float = 0.15
-const CONNECTION_FAULT_DURATION: float = 2.0
 const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 
 # Local labels — never sent to PLC.
@@ -135,6 +134,10 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 
 ## Average minutes between auto-generated connection faults during simulation.
 @export_range(0.1, 60.0, 0.1, "suffix:min") var auto_connection_fault_interval_minutes: float = 5.0
+
+## How long `connection_faulted` stays true after a connection fault fires
+## (auto-timer or `connection_fault_on_demand`) before auto-clearing.
+@export_range(0.1, 600.0, 0.1, "suffix:s") var connection_fault_duration_seconds: float = 2.0
 
 ## Click in the inspector to trigger a random trip immediately.
 ## Auto-resets to false on the next frame (acts as a momentary button).
@@ -366,12 +369,13 @@ func _trigger_random_trip() -> void:
 	fault = true
 
 
-## Pulse `connection_faulted` true for ~2s, simulating a transient comms blip.
+## Pulse `connection_faulted` true for `connection_fault_duration_seconds`,
+## simulating a transient comms blip.
 func _trigger_connection_fault() -> void:
 	if connection_faulted:
 		return
 	connection_faulted = true
-	await get_tree().create_timer(CONNECTION_FAULT_DURATION).timeout
+	await get_tree().create_timer(connection_fault_duration_seconds).timeout
 	# `_simulating` may have flipped off (scene closed) during the await; check
 	# we still exist before mutating state.
 	if is_inside_tree():
