@@ -306,6 +306,8 @@ var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
 var _conveyor: Node = null
 var _belt_speed: float = 0.0
+var _ramp_rate: float = 0.0
+var _last_ramp_target: float = 0.0
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -435,22 +437,30 @@ func _compute_target_belt_speed() -> float:
 	return mag if fwd else -mag
 
 
-## Step `_belt_speed` toward `target` by one frame's worth of ramp. Picks
-## `dynamic_accel_time` when we're moving away from zero (speed magnitude
-## growing), `dynamic_decel_time` when we're moving toward zero (magnitude
-## shrinking, including reversing through zero). Slope is sized so the
-## chosen ramp time means "current → target in N seconds".
+## Step `_belt_speed` toward `target` by one frame's worth of ramp. The
+## ramp is **linear**: any current → target transition completes in
+## exactly the chosen ramp_time seconds. We cache the rate when the
+## target changes (`|diff_at_change| / ramp_time`) and reuse it across
+## subsequent ticks so the slope stays constant during the ramp instead
+## of decaying with the shrinking diff. Picks `dynamic_accel_time` when
+## the speed magnitude is growing (moving away from 0), otherwise
+## `dynamic_decel_time` (moving toward 0, including reversing through 0).
 func _advance_belt_speed(target: float, delta: float) -> void:
 	var diff: float = target - _belt_speed
-	var direction: float = signf(diff)
-	var growing: bool = is_zero_approx(_belt_speed) or signf(_belt_speed) == direction
-	var ramp_time: float = dynamic_accel_time if growing else dynamic_decel_time
-	if ramp_time <= 0.0:
+	if not is_equal_approx(target, _last_ramp_target):
+		var change_dir: float = signf(diff)
+		var growing: bool = (is_zero_approx(_belt_speed)
+				or signf(_belt_speed) == change_dir)
+		var ramp_time: float = dynamic_accel_time if growing else dynamic_decel_time
+		_ramp_rate = (abs(diff) / ramp_time) if ramp_time > 0.0 else 0.0
+		_last_ramp_target = target
+	if is_zero_approx(diff):
+		return
+	if _ramp_rate <= 0.0:
+		# `ramp_time` was 0 → snap to target.
 		_belt_speed = target
 		return
-	var slope_speed: float = abs(target) if not is_zero_approx(target) else abs(_belt_speed)
-	var rate: float = slope_speed / ramp_time
-	var step: float = direction * rate * delta
+	var step: float = signf(diff) * _ramp_rate * delta
 	if abs(step) >= abs(diff):
 		_belt_speed = target
 	else:
