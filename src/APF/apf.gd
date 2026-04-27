@@ -352,7 +352,7 @@ var _keypad_running: bool = false
 var _keypad_reverse: bool = false
 var _keypad_jogging: bool = false
 var _prev_q: bool = false
-var _prev_w: bool = false
+var _prev_t: bool = false
 var _prev_r: bool = false
 
 
@@ -561,7 +561,7 @@ func _update_pilot_aim() -> void:
 	if aiming != _pilot_aiming:
 		_pilot_aiming = aiming
 		_prev_q = false
-		_prev_w = false
+		_prev_t = false
 		_prev_r = false
 		_update_interaction_prompt()
 
@@ -580,9 +580,9 @@ func _update_interaction_prompt() -> void:
 	if keypad_hand_mode:
 		if _keypad_running:
 			var dir_label: String = "Forward" if _keypad_reverse else "Reverse"
-			lines.append("[W] Toggle direction (next: %s)" % dir_label)
+			lines.append("[T] Toggle direction (next: %s)" % dir_label)
 		else:
-			lines.append("[W] Run (Reverse)")
+			lines.append("[T] Run (Reverse)")
 		lines.append("[R] %s (%d FPM)" % [
 			"Stop Jog" if _keypad_jogging else "Jog",
 			int(KEYPAD_JOG_FPM),
@@ -590,22 +590,22 @@ func _update_interaction_prompt() -> void:
 	_interaction_prompt.text = "\n".join(lines)
 
 
-## Just-pressed detection on Q / W / R (R/W not registered as InputMap
-## actions in this project — use raw physical-key polling). Q/W/R only
+## Just-pressed detection on Q / T / R (none registered as InputMap
+## actions in this project — use raw physical-key polling). They only
 ## fire while the pilot is aimed at this APF.
 func _poll_keypad_inputs() -> void:
 	var q_now: bool = Input.is_physical_key_pressed(KEY_Q)
-	var w_now: bool = Input.is_physical_key_pressed(KEY_W)
+	var t_now: bool = Input.is_physical_key_pressed(KEY_T)
 	var r_now: bool = Input.is_physical_key_pressed(KEY_R)
 	if q_now and not _prev_q:
 		_toggle_keypad_hand_mode()
 	if keypad_hand_mode:
-		if w_now and not _prev_w:
-			_on_keypad_w()
+		if t_now and not _prev_t:
+			_on_keypad_t()
 		if r_now and not _prev_r:
 			_on_keypad_r()
 	_prev_q = q_now
-	_prev_w = w_now
+	_prev_t = t_now
 	_prev_r = r_now
 
 
@@ -614,9 +614,9 @@ func _toggle_keypad_hand_mode() -> void:
 	# `keypad_hand_mode` setter handles state cleanup + running re-eval.
 
 
-## W press in keypad mode: first press starts the drive in reverse;
+## T press in keypad mode: first press starts the drive in reverse;
 ## subsequent presses flip direction while keeping it running.
-func _on_keypad_w() -> void:
+func _on_keypad_t() -> void:
 	if not _keypad_running:
 		_keypad_running = true
 		_keypad_reverse = true
