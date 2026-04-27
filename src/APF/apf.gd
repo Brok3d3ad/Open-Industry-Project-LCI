@@ -714,15 +714,15 @@ func _on_keypad_t() -> void:
 func _animate_handle() -> void:
 	if not _switch_handle:
 		return
-	var target_y: float = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
+	var target_z: float = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
 	var tween := create_tween()
-	tween.tween_property(_switch_handle, "rotation:y", target_y, HANDLE_TWEEN_DURATION)
+	tween.tween_property(_switch_handle, "rotation:z", target_z, HANDLE_TWEEN_DURATION)
 
 
 func _apply_handle_position() -> void:
 	if not _switch_handle:
 		return
-	_switch_handle.rotation.y = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
+	_switch_handle.rotation.z = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
 
 
 ## Update the colour of every status label and pilot lens based on the
