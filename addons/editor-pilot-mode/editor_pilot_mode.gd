@@ -219,9 +219,14 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 	_cursor_position_before_pilot = DisplayServer.mouse_get_position()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
+	# Preserve the scene-defined scale (e.g. taller pilot) — the editor
+	# camera's basis is unscaled, so assigning its full transform would
+	# clobber any non-unit scale baked into the pilot scene.
+	var saved_scale := pilot_node.scale
 	var spawn_transform := _camera.global_transform
 	spawn_transform.origin -= spawn_transform.basis.y * SPAWN_Y_OFFSET
 	pilot_node.global_transform = spawn_transform
+	pilot_node.scale = saved_scale
 
 	get_tree().edited_scene_root.add_child(pilot_node)
 	pilot_active = true
