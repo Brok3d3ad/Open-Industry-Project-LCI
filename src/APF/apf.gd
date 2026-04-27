@@ -527,6 +527,10 @@ func _tag_group_polled(group: String) -> void:
 		direction_cmd_1 = _direction_cmd_1_tag.read_bit()
 	if _commanded_velocity_tag.matches_group(group):
 		commanded_velocity = _commanded_velocity_tag.read_float32()
+		# The drive simulation tracks the PLC's command — output velocity
+		# mirrors `commanded_velocity` (which also recomputes output_current
+		# and re-evaluates `running` via the velocity setter).
+		velocity = commanded_velocity
 	if _commanded_fpm_tag.matches_group(group):
 		commanded_fpm = _commanded_fpm_tag.read_int32()
 	if _clear_fault_tag.matches_group(group):
