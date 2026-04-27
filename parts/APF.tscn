@@ -48,6 +48,15 @@ roughness = 0.2
 emission_enabled = true
 emission = Color(1, 0, 0, 1)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bfhwm"]
+resource_local_to_scene = true
+resource_name = "Pilot_Amber"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
 size = Vector3(0.5, 1.2, 0.4)
 
@@ -58,96 +67,111 @@ tag_group_name = "TagGroup0"
 
 [node name="APF" parent="." unique_id=405128982 instance=ExtResource("1_yc68d")]
 
-[node name="NameLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 1517462370) index="0" unique_id=2108377661]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15263873, 0.093920544, 0.003915906)
+[node name="NameLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 265046814) index="0" unique_id=2108377661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17862445, 0.093920544, 0.0011476204)
 pixel_size = 0.0005
 text = "APF"
 font_size = 64
 
-[node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 1517462370) index="1" unique_id=1903567270]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27032977, -0.049049065, 0.003915906)
+[node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 265046814) index="1" unique_id=1903567270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27032977, -0.049049065, 0.0011476204)
 pixel_size = 0.0005
 text = "FPM 0"
 font_size = 48
 
-[node name="PilotBezel_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="58" unique_id=1727076040]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618296, 0.09568472)
+[node name="PilotBezel_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="58" unique_id=323363692]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618294, 0.0966086)
 
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_0" index="0" unique_id=1452799306]
-transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.084474355, -0.00308232, -0.0020214766)
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.084474355, -0.005850613, -0.0020214766)
 pixel_size = 0.0005
 text = "ConnectionFaulted"
 
-[node name="PilotBezel_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="59" unique_id=1757930728]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.14618295, 0.09568472)
+[node name="PilotBezel_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="59" unique_id=901941104]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.14618295, 0.09370496)
 
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_1" index="0" unique_id=1393784006]
-transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.083232105, -0.0009343624, -0.0010880679)
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.083232105, -0.003702663, -0.0010880679)
 pixel_size = 0.0005
 text = "KeypadHandMode"
 
-[node name="PilotBezel_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="60" unique_id=1581004125]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.11618297, 0.09568472)
+[node name="PilotBezel_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="60" unique_id=1193866897]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.11618297, 0.09370496)
 
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_2" index="0" unique_id=1243834531]
-transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.08096245, -0.0006985739, -0.0001168102)
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.08096245, -0.0034668744, -0.0001167953)
 pixel_size = 0.0005
 text = "DisconnectClosed"
 
-[node name="PilotBezel_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="61" unique_id=1956482105]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.087182954, 0.09568472)
+[node name="PilotBezel_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="61" unique_id=1162217578]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.087182954, 0.09370496)
 
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_3" index="0" unique_id=1663443802]
-transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.032298412, -0.0006285459, 9.994209e-05)
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.032298412, -0.003396839, 9.992719e-05)
 pixel_size = 0.0005
 text = "Fault"
 
-[node name="PilotBezel_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="62" unique_id=840756739]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667106, 0.09568472)
+[node name="PilotBezel_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="62" unique_id=1836806540]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667114, 0.09370496)
 
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_4" index="0" unique_id=387365219]
-transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.04487649, -0.0006169602, -0.00033386052)
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.044876497, -0.0033852458, -0.00033386797)
 pixel_size = 0.0005
 modulate = Color(1, 0, 0, 1)
 text = "Running"
 
-[node name="PilotCollar_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="63" unique_id=1994944449]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618296, 0.09468472)
+[node name="PilotBezel_5" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="63" unique_id=1374227111]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00019299611, 0.02942136, 0.09365947)
 
-[node name="PilotCollar_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="64" unique_id=608321633]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.14618295, 0.09468472)
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_5" index="0" unique_id=507386445]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742278e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.08833861, -0.0033852458, -0.00033387542)
+pixel_size = 0.0005
+text = "SafeTorqueEnabled"
 
-[node name="PilotCollar_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="65" unique_id=985324635]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.11618297, 0.09468472)
+[node name="PilotCollar_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="64" unique_id=548349485]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618294, 0.091916434)
 
-[node name="PilotCollar_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="66" unique_id=1503658260]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.087182954, 0.09468472)
+[node name="PilotCollar_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="65" unique_id=1889121787]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.14618295, 0.091916434)
 
-[node name="PilotCollar_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="67" unique_id=1719171875]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667106, 0.09468472)
+[node name="PilotCollar_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="66" unique_id=2033384243]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.11618297, 0.091916434)
 
-[node name="PilotLens_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="68" unique_id=2139203868]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.17618296, 0.09568472)
+[node name="PilotCollar_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="67" unique_id=453385411]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.087182954, 0.091916434)
+
+[node name="PilotCollar_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="68" unique_id=1287651739]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667114, 0.091916434)
+
+[node name="PilotCollar_5" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="69" unique_id=1319347281]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00019299611, 0.02942136, 0.09169755)
+
+[node name="PilotLens_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="70" unique_id=530051230]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.17618294, 0.09291644)
 surface_material_override/0 = SubResource("StandardMaterial3D_1gxo2")
 
-[node name="PilotLens_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="69" unique_id=624266939]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.14618295, 0.09568472)
+[node name="PilotLens_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="71" unique_id=1105361842]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.14618295, 0.09291644)
 surface_material_override/0 = SubResource("StandardMaterial3D_7iye2")
 
-[node name="PilotLens_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="70" unique_id=1149051362]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.11618297, 0.09568472)
+[node name="PilotLens_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="72" unique_id=2137333550]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.11618297, 0.09291644)
 surface_material_override/0 = SubResource("StandardMaterial3D_c1jlu")
 
-[node name="PilotLens_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="71" unique_id=737338357]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.087182954, 0.09568472)
+[node name="PilotLens_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="73" unique_id=477774834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.087182954, 0.09291644)
 surface_material_override/0 = SubResource("StandardMaterial3D_jwfuu")
 
-[node name="PilotLens_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="72" unique_id=1050479175]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.057667106, 0.09568472)
+[node name="PilotLens_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="74" unique_id=81792559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.057667114, 0.09291644)
 surface_material_override/0 = SubResource("StandardMaterial3D_ayml6")
 
-[node name="SwitchHandle" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="77" unique_id=1798801326]
-transform = Transform3D(1.9106855e-15, 4.371139e-08, 1, 1, -4.371139e-08, 0, 4.371139e-08, 1, -4.371139e-08, 0.175, 0.21, 0.124)
+[node name="PilotLens_5" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="75" unique_id=2103022045]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00019299611, 0.02942136, 0.09269755)
+surface_material_override/0 = SubResource("StandardMaterial3D_bfhwm")
+
+[node name="SwitchHandle" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 1733910173) index="80" unique_id=1814441028]
+transform = Transform3D(1.9106857e-15, 4.371139e-08, 1, 1, -4.371139e-08, 1.4117216e-22, 4.371139e-08, 1, -4.371139e-08, 0.175, 0.21, 0.12399999)
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=627268408]
 collision_layer = 3
@@ -156,16 +180,13 @@ collision_layer = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 shape = SubResource("BoxShape3D_collision")
 
-[node name="InteractionPrompt" type="Label3D" parent="."]
+[node name="InteractionPrompt" type="Label3D" parent="." unique_id=1094718531]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0.2)
+visible = false
+pixel_size = 0.0006
 billboard = 1
 no_depth_test = true
-pixel_size = 0.0006
-modulate = Color(1, 1, 1, 1)
-outline_modulate = Color(0, 0, 0, 1)
-outline_size = 4
-text = ""
 font_size = 28
-visible = false
+outline_size = 4
 
 [editable path="APF"]

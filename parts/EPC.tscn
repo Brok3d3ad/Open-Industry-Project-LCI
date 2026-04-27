@@ -3,6 +3,15 @@
 [ext_resource type="PackedScene" uid="uid://chxou2ij57s3g" path="res://assets/3DModels/EPC/EPC.glb" id="1_myfbq"]
 [ext_resource type="Script" uid="uid://bg0ew208nyvox" path="res://src/EPC/epc.gd" id="2_script"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hixw0"]
+resource_local_to_scene = true
+resource_name = "PilotGreen"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
 size = Vector3(0.5, 0.4, 0.4)
 
@@ -13,10 +22,13 @@ tag_group_name = "TagGroup0"
 
 [node name="EPC" parent="." unique_id=222179672 instance=ExtResource("1_myfbq")]
 
+[node name="PilotLens" parent="EPC/EPC_Root" parent_id_path=PackedInt32Array(222179672, 326830232) index="10" unique_id=1218739957]
+surface_material_override/0 = SubResource("StandardMaterial3D_hixw0")
+
 [node name="Label" type="Label3D" parent="EPC/EPC_Root/TensionerNeck" parent_id_path=PackedInt32Array(222179672, 344671080) index="0" unique_id=1603350041]
-transform = Transform3D(0.5377053, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0.025646964, -0.0011039004)
-billboard = 1
+transform = Transform3D(0.5377053, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0.038401432, -0.0011039005)
 pixel_size = 0.0004
+billboard = 1
 modulate = Color(0, 0, 0, 1)
 text = "EPC"
 font_size = 64
