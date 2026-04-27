@@ -20,8 +20,10 @@ const FPM_TO_MS: float = 0.00508
 ## `commanded_velocity` is normalised against this full-scale value when
 ## computing the conveyor target — at 30 the drive runs at `design_fpm`.
 const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
-## Belt speed in FPM while keypad jog (R key) is engaged.
-const KEYPAD_JOG_FPM: float = 15.0
+## Velocity-scale value (0..30) that keypad jog (R held) commands. Belt
+## speed in FPM is `KEYPAD_JOG_VELOCITY / 30 × design_fpm`, so jog is
+## always half the design speed regardless of how `design_fpm` is set.
+const KEYPAD_JOG_VELOCITY: float = 15.0
 ## How far the pilot's interaction ray reaches for prompt detection.
 const PILOT_AIM_RANGE: float = 3.0
 
@@ -130,7 +132,7 @@ func _compute_reported_velocity() -> float:
 	if not keypad_hand_mode:
 		return commanded_velocity
 	if _keypad_jogging:
-		return KEYPAD_JOG_FPM / float(design_fpm) * COMMANDED_VELOCITY_FULL_SCALE
+		return KEYPAD_JOG_VELOCITY
 	if _keypad_running:
 		return COMMANDED_VELOCITY_FULL_SCALE
 	return 0.0
@@ -483,15 +485,19 @@ func _resolve_conveyor() -> void:
 ## `design_fpm` (FPM); below scales linearly down to 0; above scales up.
 ## Both direction bits true OR both false → 0 (no commanded direction).
 ##
-## In keypad mode the PLC inputs are ignored; speed is `KEYPAD_JOG_FPM`
-## while jogging, otherwise `design_fpm`, signed by `_keypad_reverse`.
+## In keypad mode the PLC inputs are ignored; speed scales `design_fpm`
+## by `KEYPAD_JOG_VELOCITY / 30` while jogging, full design otherwise,
+## signed by `_keypad_reverse`.
 func _compute_target_belt_speed() -> float:
 	if not running:
 		return 0.0
 	var dir_fwd: bool
 	var fpm: float
 	if keypad_hand_mode:
-		fpm = KEYPAD_JOG_FPM if _keypad_jogging else float(design_fpm)
+		if _keypad_jogging:
+			fpm = (KEYPAD_JOG_VELOCITY / COMMANDED_VELOCITY_FULL_SCALE) * float(design_fpm)
+		else:
+			fpm = float(design_fpm)
 		dir_fwd = not _keypad_reverse
 	else:
 		var fwd: bool = direction_cmd_0 and not direction_cmd_1
@@ -566,6 +572,9 @@ func _update_pilot_aim() -> void:
 		_prev_q = false
 		_prev_t = false
 		_prev_r = false
+		# Aiming away mid-jog must cancel the held action so the belt stops.
+		if not _pilot_aiming and _keypad_jogging:
+			_set_keypad_jogging(false)
 		_update_interaction_prompt()
 
 
@@ -586,16 +595,15 @@ func _update_interaction_prompt() -> void:
 			lines.append("[T] Toggle direction (next: %s)" % dir_label)
 		else:
 			lines.append("[T] Run (Reverse)")
-		lines.append("[R] %s (%d FPM)" % [
-			"Stop Jog" if _keypad_jogging else "Jog",
-			int(KEYPAD_JOG_FPM),
-		])
+		var jog_fpm: int = int(round(
+				KEYPAD_JOG_VELOCITY / COMMANDED_VELOCITY_FULL_SCALE * float(design_fpm)))
+		lines.append("[R] Hold to Jog (%d FPM)" % jog_fpm)
 	_interaction_prompt.text = "\n".join(lines)
 
 
-## Just-pressed detection on Q / T / R (none registered as InputMap
-## actions in this project — use raw physical-key polling). They only
-## fire while the pilot is aimed at this APF.
+## Polled in `_physics_process` while aimed at the APF. Q (keypad mode)
+## and T (direction) are edge-triggered. R is **held** — jog runs only
+## while the key is physically down, so releasing immediately cancels.
 func _poll_keypad_inputs() -> void:
 	var q_now: bool = Input.is_physical_key_pressed(KEY_Q)
 	var t_now: bool = Input.is_physical_key_pressed(KEY_T)
@@ -605,11 +613,20 @@ func _poll_keypad_inputs() -> void:
 	if keypad_hand_mode:
 		if t_now and not _prev_t:
 			_on_keypad_t()
-		if r_now and not _prev_r:
-			_on_keypad_r()
+		_set_keypad_jogging(r_now)
 	_prev_q = q_now
 	_prev_t = t_now
 	_prev_r = r_now
+
+
+## Held-jog primitive — driven from key polling and from the aim-out
+## transition (so releasing aim cancels jog even before the next poll).
+func _set_keypad_jogging(value: bool) -> void:
+	if value == _keypad_jogging:
+		return
+	_keypad_jogging = value
+	running = true
+	_update_interaction_prompt()
 
 
 func _toggle_keypad_hand_mode() -> void:
@@ -625,14 +642,6 @@ func _on_keypad_t() -> void:
 		_keypad_reverse = true
 	else:
 		_keypad_reverse = not _keypad_reverse
-	running = true
-	_update_interaction_prompt()
-
-
-## R press in keypad mode: toggle the jog state. While jogging, target
-## belt speed is `KEYPAD_JOG_FPM` regardless of `_keypad_running`.
-func _on_keypad_r() -> void:
-	_keypad_jogging = not _keypad_jogging
 	running = true
 	_update_interaction_prompt()
 
