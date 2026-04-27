@@ -142,10 +142,24 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 		if rising_edge:
 			call_deferred("_handle_trip_on_demand")
 
+## Click in the inspector to fire a connection fault pulse immediately.
+## Auto-resets to false; same deferred-cascade behaviour as `trip_on_demand`.
+@export var connection_fault_on_demand: bool = false:
+	set(value):
+		var rising_edge: bool = value and not connection_fault_on_demand
+		connection_fault_on_demand = value
+		if rising_edge:
+			call_deferred("_handle_connection_fault_on_demand")
+
 
 func _handle_trip_on_demand() -> void:
 	_trigger_random_trip()
 	trip_on_demand = false
+
+
+func _handle_connection_fault_on_demand() -> void:
+	_trigger_connection_fault()
+	connection_fault_on_demand = false
 
 
 @export_category("Command Inputs")
