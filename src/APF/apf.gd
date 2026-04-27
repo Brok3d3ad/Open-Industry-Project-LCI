@@ -117,7 +117,8 @@ const PILOT_AIM_RANGE: float = 3.0
 			operational = start and not stop and commanded_velocity > 0.0
 		var gated: bool = (value
 				and operational
-				and not fault and disconnect_closed and not connection_faulted)
+				and not fault and disconnect_closed and not connection_faulted
+				and safe_torque_enabled)
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
 		running = gated
@@ -133,6 +134,19 @@ func _compute_reported_velocity() -> float:
 	if _keypad_jogging:
 		return KEYPAD_JOG_VELOCITY
 	return 0.0
+
+## Safe Torque Off feedback (BOOL). High = torque enabled (safe to run).
+## Driven by the assigned `epc_paths`: while ANY EPC is tripped this
+## goes low and forces `running = false`. Without any EPC assigned it
+## stays high so the gate doesn't block remote operation.
+@export var safe_torque_enabled: bool = true:
+	set(value):
+		if _safe_torque_enabled_tag.is_ready() and value != safe_torque_enabled:
+			_safe_torque_enabled_tag.write_bit(value)
+		safe_torque_enabled = value
+		if not safe_torque_enabled:
+			running = false
+		_update_status_visuals()
 
 ## Reported output current (REAL). Auto-computed as 2 × velocity; setter still
 ## writes to PLC when assigned externally.
@@ -210,6 +224,19 @@ func _handle_connection_fault_on_demand() -> void:
 	connection_fault_on_demand = false
 
 
+@export_category("Safety")
+
+## Optional EPCs (Emergency Pull Cords) coupled to this drive. While
+## **any** assigned EPC is tripped, `safe_torque_enabled` reads `false`
+## and the running gate denies — the drive cannot run. Leave the list
+## empty to disable the gate. Add as many EPCs as the safety chain
+## requires; `tripped == true` on any one drops STO.
+@export var epc_paths: Array[NodePath]:
+	set(value):
+		epc_paths = value
+		_resolve_epcs()
+
+
 @export_category("Conveyor Coupling")
 
 ## The conveyor (BeltConveyor / RollerConveyor / assembly) this drive
@@ -268,6 +295,9 @@ func _handle_connection_fault_on_demand() -> void:
 @export var fault_tag_name: String = ""
 ## Running tag.[br]Datatype: [code]BOOL[/code]
 @export var running_tag_name: String = ""
+## SafeTorqueEnabled tag.[br]Datatype: [code]BOOL[/code] — high when
+## torque is enabled (no EPC trip), low when an assigned EPC is tripped.
+@export var safe_torque_enabled_tag_name: String = ""
 ## OutputCurrent tag.[br]Datatype: [code]REAL[/code]
 @export var output_current_tag_name: String = ""
 ## OutputVoltage tag.[br]Datatype: [code]REAL[/code]
@@ -298,7 +328,9 @@ func _handle_connection_fault_on_demand() -> void:
 
 # Status condition for each pilot lens / status label, in slot order.
 # Index → property mapping is stable: matches the inspector ordering.
-const STATUS_COUNT: int = 5
+# 0 ConnectionFaulted, 1 KeypadHandMode, 2 DisconnectClosed, 3 Fault,
+# 4 Running, 5 SafeTorqueEnabled.
+const STATUS_COUNT: int = 6
 
 @onready var _switch_handle: Node3D = $APF/APF_Root/SwitchHandle
 @onready var _name_label: Label3D = get_node_or_null("APF/APF_Root/ControlPanel/NameLabel") as Label3D
@@ -310,6 +342,7 @@ const STATUS_COUNT: int = 5
 	get_node_or_null("APF/APF_Root/PilotBezel_2/StatusLabel") as Label3D,
 	get_node_or_null("APF/APF_Root/PilotBezel_3/StatusLabel") as Label3D,
 	get_node_or_null("APF/APF_Root/PilotBezel_4/StatusLabel") as Label3D,
+	get_node_or_null("APF/APF_Root/PilotBezel_5/StatusLabel") as Label3D,
 ]
 @onready var _pilot_lenses: Array[MeshInstance3D] = [
 	get_node_or_null("APF/APF_Root/PilotLens_0") as MeshInstance3D,
@@ -317,6 +350,7 @@ const STATUS_COUNT: int = 5
 	get_node_or_null("APF/APF_Root/PilotLens_2") as MeshInstance3D,
 	get_node_or_null("APF/APF_Root/PilotLens_3") as MeshInstance3D,
 	get_node_or_null("APF/APF_Root/PilotLens_4") as MeshInstance3D,
+	get_node_or_null("APF/APF_Root/PilotLens_5") as MeshInstance3D,
 ]
 
 var _connection_faulted_tag := OIPCommsTag.new()
@@ -324,6 +358,7 @@ var _keypad_hand_mode_tag := OIPCommsTag.new()
 var _disconnect_closed_tag := OIPCommsTag.new()
 var _fault_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
+var _safe_torque_enabled_tag := OIPCommsTag.new()
 var _output_current_tag := OIPCommsTag.new()
 var _output_voltage_tag := OIPCommsTag.new()
 var _velocity_tag := OIPCommsTag.new()
@@ -343,6 +378,7 @@ var _simulating: bool = false
 var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
 var _conveyor: Node = null
+var _epcs: Array[Node] = []
 var _belt_speed: float = 0.0
 var _ramp_rate: float = 0.0
 var _last_ramp_target: float = 0.0
@@ -358,7 +394,7 @@ func _validate_property(property: Dictionary) -> void:
 	# Sensed / driven values — read-only in inspector.
 	var read_only_props: PackedStringArray = [
 		"connection_faulted", "keypad_hand_mode", "disconnect_closed",
-		"fault", "running",
+		"fault", "running", "safe_torque_enabled",
 		"output_current", "output_voltage", "velocity", "trip_fault_code",
 		"stop", "start", "direction_cmd_0", "direction_cmd_1",
 		"commanded_velocity", "clear_fault",
@@ -371,6 +407,7 @@ func _validate_property(property: Dictionary) -> void:
 	var tag_fields: PackedStringArray = [
 		"connection_faulted_tag_name", "keypad_hand_mode_tag_name",
 		"disconnect_closed_tag_name", "fault_tag_name", "running_tag_name",
+		"safe_torque_enabled_tag_name",
 		"output_current_tag_name", "output_voltage_tag_name",
 		"velocity_tag_name", "trip_fault_code_tag_name",
 		"stop_tag_name", "start_tag_name",
@@ -401,6 +438,7 @@ func _ready() -> void:
 	if _interaction_prompt:
 		_interaction_prompt.visible = false
 	_resolve_conveyor()
+	_resolve_epcs()
 	_update_fpm_label()
 	_apply_handle_position()
 	_update_status_visuals()
@@ -431,6 +469,7 @@ func _physics_process(delta: float) -> void:
 	_update_pilot_aim()
 	if _pilot_aiming:
 		_poll_keypad_inputs()
+	_poll_safe_torque()
 	var target: float = _compute_target_belt_speed()
 	if not is_equal_approx(_belt_speed, target):
 		_advance_belt_speed(target, delta)
@@ -463,6 +502,40 @@ func _trigger_connection_fault() -> void:
 	# we still exist before mutating state.
 	if is_inside_tree():
 		connection_faulted = false
+
+
+## Resolve every NodePath in `epc_paths` to a live node. Filters out
+## empties and unresolvable paths. Called on `epc_paths` change and in
+## `_ready` (deferred for trees not yet built).
+func _resolve_epcs() -> void:
+	_epcs.clear()
+	if not is_inside_tree():
+		return
+	for path: NodePath in epc_paths:
+		if path.is_empty():
+			continue
+		var node: Node = get_node_or_null(path)
+		if node:
+			_epcs.append(node)
+
+
+## Returns true if any assigned EPC reports `tripped == true`. Empty list
+## (no EPCs assigned) → returns false (no constraint).
+func _any_epc_tripped() -> bool:
+	for epc: Node in _epcs:
+		if not is_instance_valid(epc):
+			continue
+		if "tripped" in epc and bool(epc.get("tripped")):
+			return true
+	return false
+
+
+## Poll the assigned EPC chain and update `safe_torque_enabled` if its
+## state has changed. Called per physics tick.
+func _poll_safe_torque() -> void:
+	var new_sto: bool = not _any_epc_tripped()
+	if new_sto != safe_torque_enabled:
+		safe_torque_enabled = new_sto
 
 
 func _resolve_conveyor() -> void:
@@ -661,6 +734,7 @@ func _update_status_visuals() -> void:
 		not disconnect_closed,
 		fault,
 		not running,
+		not safe_torque_enabled,
 	]
 	for i in range(STATUS_COUNT):
 		var bad: bool = bad_states[i]
@@ -725,6 +799,7 @@ func _on_simulation_started() -> void:
 	_disconnect_closed_tag.register(tag_group_name, disconnect_closed_tag_name)
 	_fault_tag.register(tag_group_name, fault_tag_name)
 	_running_tag.register(tag_group_name, running_tag_name)
+	_safe_torque_enabled_tag.register(tag_group_name, safe_torque_enabled_tag_name)
 	_output_current_tag.register(tag_group_name, output_current_tag_name)
 	_output_voltage_tag.register(tag_group_name, output_voltage_tag_name)
 	_velocity_tag.register(tag_group_name, velocity_tag_name)
@@ -750,6 +825,8 @@ func _tag_group_initialized(group: String) -> void:
 		_fault_tag.write_bit(fault)
 	if _running_tag.on_group_initialized(group):
 		_running_tag.write_bit(running)
+	if _safe_torque_enabled_tag.on_group_initialized(group):
+		_safe_torque_enabled_tag.write_bit(safe_torque_enabled)
 	if _output_current_tag.on_group_initialized(group):
 		_output_current_tag.write_float32(output_current)
 	if _output_voltage_tag.on_group_initialized(group):
