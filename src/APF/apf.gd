@@ -422,14 +422,17 @@ func _process(delta: float) -> void:
 	if _connection_elapsed >= auto_connection_fault_interval_minutes * 60.0:
 		_connection_elapsed = 0.0
 		_trigger_connection_fault()
-	_update_pilot_aim()
-	if _pilot_aiming:
-		_poll_keypad_inputs()
 
 
 func _physics_process(delta: float) -> void:
 	if not _simulating:
 		return
+	# Pilot-aim ray cast must run here — physics runs on a separate thread
+	# (`3d/run_on_separate_thread=true` in project.godot) and the space
+	# state is null from `_process`.
+	_update_pilot_aim()
+	if _pilot_aiming:
+		_poll_keypad_inputs()
 	var target: float = _compute_target_belt_speed()
 	if not is_equal_approx(_belt_speed, target):
 		_advance_belt_speed(target, delta)
