@@ -11,8 +11,8 @@ const STATUS_OK_COLOR: Color = Color(1, 1, 1, 1)
 const STATUS_BAD_COLOR: Color = Color(1, 0, 0, 1)
 const PILOT_OK_COLOR: Color = Color(0, 1, 0, 1)
 const PILOT_BAD_COLOR: Color = Color(1, 0, 0, 1)
-const HANDLE_CLOSED_ANGLE: float = PI / 2.0
-const HANDLE_OPEN_ANGLE: float = 0.0
+const HANDLE_CLOSED_ANGLE: float = 0.0
+const HANDLE_OPEN_ANGLE: float = PI / 2.0
 const HANDLE_TWEEN_DURATION: float = 0.15
 const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 ## Standard conversion: 1 foot per minute = 0.00508 m/s.
@@ -714,15 +714,15 @@ func _on_keypad_t() -> void:
 func _animate_handle() -> void:
 	if not _switch_handle:
 		return
-	var target_z: float = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
+	var target_x: float = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
 	var tween := create_tween()
-	tween.tween_property(_switch_handle, "rotation:z", target_z, HANDLE_TWEEN_DURATION)
+	tween.tween_property(_switch_handle, "rotation:x", target_x, HANDLE_TWEEN_DURATION)
 
 
 func _apply_handle_position() -> void:
 	if not _switch_handle:
 		return
-	_switch_handle.rotation.z = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
+	_switch_handle.rotation.x = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
 
 
 ## Update the colour of every status label and pilot lens based on the
