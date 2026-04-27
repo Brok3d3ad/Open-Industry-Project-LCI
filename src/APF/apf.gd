@@ -373,7 +373,7 @@ var _dynamic_accel_time_tag := OIPCommsTag.new()
 var _dynamic_decel_time_tag := OIPCommsTag.new()
 
 var _last_clear_fault: bool = false
-var _pilot_materials_made_unique: Array[bool] = [false, false, false, false, false]
+var _pilot_materials_made_unique: Array[bool] = [false, false, false, false, false, false]
 var _simulating: bool = false
 var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
