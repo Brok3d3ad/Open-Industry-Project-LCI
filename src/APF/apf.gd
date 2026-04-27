@@ -78,12 +78,14 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 		_update_status_visuals()
 
 ## true when the motor is running. Red when false (drive stopped). Setter
-## gates: assignment to true is ignored if `fault`, `connection_faulted`,
-## or `not disconnect_closed` is active — running stays false until the
-## bad condition clears AND a fresh start command arrives.
-@export var running: bool = true:
+## gates: assignment to true is ignored unless ALL of the following hold —
+## `start` (run bit from PLC) is high, `stop` is low, and there is no fault
+## (`fault`, `connection_faulted`, `not disconnect_closed`).
+@export var running: bool = false:
 	set(value):
-		var gated: bool = value and not fault and disconnect_closed and not connection_faulted
+		var gated: bool = (value
+				and start and not stop
+				and not fault and disconnect_closed and not connection_faulted)
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
 		running = gated
@@ -479,10 +481,13 @@ func _tag_group_initialized(group: String) -> void:
 func _tag_group_polled(group: String) -> void:
 	if not enable_comms:
 		return
+	var refresh_run := false
 	if _stop_tag.matches_group(group):
 		stop = _stop_tag.read_bit()
+		refresh_run = true
 	if _start_tag.matches_group(group):
 		start = _start_tag.read_bit()
+		refresh_run = true
 	if _direction_cmd_0_tag.matches_group(group):
 		direction_cmd_0 = _direction_cmd_0_tag.read_bit()
 	if _direction_cmd_1_tag.matches_group(group):
@@ -503,3 +508,7 @@ func _tag_group_polled(group: String) -> void:
 		dynamic_accel_time = _dynamic_accel_time_tag.read_float32()
 	if _dynamic_decel_time_tag.matches_group(group):
 		dynamic_decel_time = _dynamic_decel_time_tag.read_float32()
+	if refresh_run:
+		# Re-evaluate `running` against the freshly-polled run/stop bits.
+		# The setter gate handles fault/disconnect/connection conditions.
+		running = start and not stop

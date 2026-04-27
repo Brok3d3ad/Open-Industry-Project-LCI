@@ -63,8 +63,8 @@ pixel_size = 0.0005
 text = "APF"
 font_size = 64
 
-[node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15263873, 0.07, 0.003915906)
+[node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 1517462370) index="1" unique_id=1903567270]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27032977, -0.049049065, 0.003915906)
 pixel_size = 0.0005
 text = "FPM 30"
 font_size = 48
@@ -145,7 +145,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.057667106, 
 surface_material_override/0 = SubResource("StandardMaterial3D_ayml6")
 
 [node name="SwitchHandle" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="77" unique_id=1798801326]
-transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.175, 0.21, 0.124)
+transform = Transform3D(1.9106855e-15, 4.371139e-08, 1, 1, -4.371139e-08, 0, 4.371139e-08, 1, -4.371139e-08, 0.175, 0.21, 0.124)
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=627268408]
 collision_layer = 3
