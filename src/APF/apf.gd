@@ -15,6 +15,8 @@ const HANDLE_CLOSED_ANGLE: float = PI / 2.0
 const HANDLE_OPEN_ANGLE: float = 0.0
 const HANDLE_TWEEN_DURATION: float = 0.15
 const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
+## Standard conversion: 1 foot per minute = 0.00508 m/s.
+const FPM_TO_MS: float = 0.00508
 
 # Local labels — never sent to PLC.
 @export var name_text: String = "APF":
@@ -168,6 +170,19 @@ func _handle_connection_fault_on_demand() -> void:
 	connection_fault_on_demand = false
 
 
+@export_category("Conveyor Coupling")
+
+## The conveyor (BeltConveyor / RollerConveyor / assembly) this drive
+## controls. Leave empty to run the APF as a stand-alone drive sim.
+## The script writes `commanded_fpm` (converted to m/s) to the target's
+## `speed` property, sign-flipped per direction bits, and ramped over
+## `dynamic_accel_time` / `dynamic_decel_time`.
+@export var conveyor_path: NodePath:
+	set(value):
+		conveyor_path = value
+		_resolve_conveyor()
+
+
 @export_category("Command Inputs")
 
 ## PLC stop command (BOOL). Read-only — driven by PLC.
@@ -180,12 +195,10 @@ func _handle_connection_fault_on_demand() -> void:
 @export var direction_cmd_1: bool = false
 ## PLC commanded velocity (REAL).
 @export var commanded_velocity: float = 0.0
-## PLC commanded FPM (DINT). Drives the on-drive `FpmLabel`.
-@export var commanded_fpm: int = 0:
-	set(value):
-		commanded_fpm = value
-		if _fpm_label:
-			_fpm_label.text = "FPM %d" % commanded_fpm
+## PLC commanded FPM (DINT). Drives the conveyor speed setpoint via
+## `_compute_target_belt_speed()` (the `FpmLabel` follows the live
+## ramped speed, not this command directly).
+@export var commanded_fpm: int = 0
 ## PLC clear-fault command (BOOL). Rising edge clears `trip_fault_code` and `fault`.
 @export var clear_fault: bool = false
 ## PLC dynamic accel time (REAL).
@@ -292,6 +305,8 @@ var _pilot_materials_made_unique: Array[bool] = [false, false, false, false, fal
 var _simulating: bool = false
 var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
+var _conveyor: Node = null
+var _belt_speed: float = 0.0
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -339,8 +354,8 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if _name_label:
 		_name_label.text = name_text
-	if _fpm_label:
-		_fpm_label.text = "FPM %d" % commanded_fpm
+	_resolve_conveyor()
+	_update_fpm_label()
 	_apply_handle_position()
 	_update_status_visuals()
 
@@ -356,6 +371,17 @@ func _process(delta: float) -> void:
 	if _connection_elapsed >= auto_connection_fault_interval_minutes * 60.0:
 		_connection_elapsed = 0.0
 		_trigger_connection_fault()
+
+
+func _physics_process(delta: float) -> void:
+	if not _simulating:
+		return
+	var target: float = _compute_target_belt_speed()
+	if not is_equal_approx(_belt_speed, target):
+		_advance_belt_speed(target, delta)
+		_update_fpm_label()
+	if _conveyor and "speed" in _conveyor:
+		_conveyor.set("speed", _belt_speed)
 
 
 ## E-click in pilot mode (and editor C-shortcut) toggles disconnect.
@@ -382,6 +408,61 @@ func _trigger_connection_fault() -> void:
 	# we still exist before mutating state.
 	if is_inside_tree():
 		connection_faulted = false
+
+
+func _resolve_conveyor() -> void:
+	if conveyor_path.is_empty():
+		_conveyor = null
+		return
+	if not is_inside_tree():
+		# `_ready` runs the resolve once we're in the tree.
+		return
+	_conveyor = get_node_or_null(conveyor_path)
+
+
+## Target belt speed in m/s based on running + direction bits + commanded FPM.
+## Both direction bits true OR both false → 0 (no commanded direction).
+func _compute_target_belt_speed() -> float:
+	if not running:
+		return 0.0
+	var fwd: bool = direction_cmd_0 and not direction_cmd_1
+	var rev: bool = direction_cmd_1 and not direction_cmd_0
+	if not fwd and not rev:
+		return 0.0
+	var mag: float = float(commanded_fpm) * FPM_TO_MS
+	return mag if fwd else -mag
+
+
+## Step `_belt_speed` toward `target` by one frame's worth of ramp. Picks
+## `dynamic_accel_time` when we're moving away from zero (speed magnitude
+## growing), `dynamic_decel_time` when we're moving toward zero (magnitude
+## shrinking, including reversing through zero).
+func _advance_belt_speed(target: float, delta: float) -> void:
+	var diff: float = target - _belt_speed
+	var direction: float = signf(diff)
+	var growing: bool = is_zero_approx(_belt_speed) or signf(_belt_speed) == direction
+	var ramp_time: float = dynamic_accel_time if growing else dynamic_decel_time
+	if ramp_time <= 0.0:
+		_belt_speed = target
+		return
+	# Use commanded magnitude as the "full-scale" speed for the ramp slope so
+	# accel_time means "0 → commanded in N seconds" regardless of |target|.
+	var max_speed: float = abs(commanded_fpm) * FPM_TO_MS
+	if max_speed <= 0.0:
+		max_speed = abs(target) if not is_zero_approx(target) else abs(_belt_speed)
+	var rate: float = max_speed / ramp_time
+	var step: float = direction * rate * delta
+	if abs(step) >= abs(diff):
+		_belt_speed = target
+	else:
+		_belt_speed += step
+
+
+func _update_fpm_label() -> void:
+	if not _fpm_label:
+		return
+	var fpm: int = int(round(abs(_belt_speed) / FPM_TO_MS))
+	_fpm_label.text = "FPM %d" % fpm
 
 
 func _animate_handle() -> void:
