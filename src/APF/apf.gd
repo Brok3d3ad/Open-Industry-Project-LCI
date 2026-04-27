@@ -132,12 +132,20 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 @export_range(0.1, 60.0, 0.1, "suffix:min") var auto_connection_fault_interval_minutes: float = 5.0
 
 ## Click in the inspector to trigger a random trip immediately.
-## Auto-resets to false (acts as a momentary button).
+## Auto-resets to false on the next frame (acts as a momentary button).
+## The actual trip is deferred so the inspector's commit cycle finishes
+## before we cascade-mutate `fault`, `trip_fault_code`, `running`, etc.
 @export var trip_on_demand: bool = false:
 	set(value):
-		if value and not trip_on_demand:
-			_trigger_random_trip()
-		trip_on_demand = false
+		var rising_edge: bool = value and not trip_on_demand
+		trip_on_demand = value
+		if rising_edge:
+			call_deferred("_handle_trip_on_demand")
+
+
+func _handle_trip_on_demand() -> void:
+	_trigger_random_trip()
+	trip_on_demand = false
 
 
 @export_category("Command Inputs")
@@ -405,8 +413,14 @@ func _ensure_lens_material_unique(idx: int) -> void:
 		return
 	var current_override := lens.get_surface_override_material(0)
 	if current_override:
-		var unique_mat := current_override.duplicate() as Material
-		lens.set_surface_override_material(0, unique_mat)
+		# Override already in the .tscn. If it's local-to-scene we can mutate
+		# it directly (each scene instance has its own copy) — duplicating
+		# again risks Godot logging "Failed to write" because the resulting
+		# resource isn't tracked in the scene state.
+		if not current_override.resource_local_to_scene:
+			var unique_mat := current_override.duplicate() as Material
+			unique_mat.resource_local_to_scene = true
+			lens.set_surface_override_material(0, unique_mat)
 	else:
 		var base_mat := lens.mesh.surface_get_material(0) as StandardMaterial3D
 		if base_mat:
