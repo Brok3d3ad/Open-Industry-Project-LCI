@@ -23,12 +23,10 @@ const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 		if _name_label:
 			_name_label.text = name_text
 
-## Design FPM displayed on the drive face (local label only, no tag).
-@export var design_fpm: int = 30:
-	set(value):
-		design_fpm = value
-		if _fpm_label:
-			_fpm_label.text = "FPM %d" % design_fpm
+## Design FPM rating of the drive (inspector reference only — not a tag,
+## not displayed). Kept for parity with the spec; the visible FPM label
+## tracks the PLC's `commanded_fpm`.
+@export var design_fpm: int = 30
 
 
 @export_category("State Outputs")
@@ -182,8 +180,12 @@ func _handle_connection_fault_on_demand() -> void:
 @export var direction_cmd_1: bool = false
 ## PLC commanded velocity (REAL).
 @export var commanded_velocity: float = 0.0
-## PLC commanded FPM (DINT).
-@export var commanded_fpm: int = 0
+## PLC commanded FPM (DINT). Drives the on-drive `FpmLabel`.
+@export var commanded_fpm: int = 0:
+	set(value):
+		commanded_fpm = value
+		if _fpm_label:
+			_fpm_label.text = "FPM %d" % commanded_fpm
 ## PLC clear-fault command (BOOL). Rising edge clears `trip_fault_code` and `fault`.
 @export var clear_fault: bool = false
 ## PLC dynamic accel time (REAL).
@@ -338,7 +340,7 @@ func _ready() -> void:
 	if _name_label:
 		_name_label.text = name_text
 	if _fpm_label:
-		_fpm_label.text = "FPM %d" % design_fpm
+		_fpm_label.text = "FPM %d" % commanded_fpm
 	_apply_handle_position()
 	_update_status_visuals()
 
