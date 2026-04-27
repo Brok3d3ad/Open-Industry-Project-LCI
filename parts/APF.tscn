@@ -1,7 +1,52 @@
-[gd_scene load_steps=3 format=3 uid="uid://fjhp06hl5608"]
+[gd_scene format=3 uid="uid://fjhp06hl5608"]
 
 [ext_resource type="PackedScene" uid="uid://dfkssr63ujkny" path="res://assets/3DModels/APF/APF.glb" id="1_yc68d"]
-[ext_resource type="Script" path="res://src/APF/apf.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://k13a62uio1tj" path="res://src/APF/apf.gd" id="2_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1gxo2"]
+resource_local_to_scene = true
+resource_name = "Pilot_Green"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7iye2"]
+resource_local_to_scene = true
+resource_name = "Pilot_Green"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c1jlu"]
+resource_local_to_scene = true
+resource_name = "Pilot_Red"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jwfuu"]
+resource_local_to_scene = true
+resource_name = "Pilot_Red"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ayml6"]
+resource_local_to_scene = true
+resource_name = "Pilot_Amber"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
 size = Vector3(0.5, 1.2, 0.4)
@@ -12,20 +57,57 @@ tag_group_name = "TagGroup0"
 
 [node name="APF" parent="." unique_id=405128982 instance=ExtResource("1_yc68d")]
 
+[node name="NameLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 1517462370) index="0" unique_id=2108377661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15263873, 0.093920544, 0.003915906)
+pixel_size = 0.0005
+text = "APF"
+font_size = 64
+
+[node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15263873, 0.07, 0.003915906)
+pixel_size = 0.0005
+text = "FPM 30"
+font_size = 48
+
 [node name="PilotBezel_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="58" unique_id=1727076040]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618296, 0.09568472)
+
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_0" index="0" unique_id=1452799306]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.084474355, -0.00308232, -0.0020214766)
+pixel_size = 0.0005
+text = "ConnectionFaulted"
 
 [node name="PilotBezel_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="59" unique_id=1757930728]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.14618295, 0.09568472)
 
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_1" index="0" unique_id=1393784006]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.083232105, -0.0009343624, -0.0010880679)
+pixel_size = 0.0005
+text = "KeypadHandMode"
+
 [node name="PilotBezel_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="60" unique_id=1581004125]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.11618297, 0.09568472)
+
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_2" index="0" unique_id=1243834531]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.08096245, -0.0006985739, -0.0001168102)
+pixel_size = 0.0005
+text = "DisconnectClosed"
 
 [node name="PilotBezel_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="61" unique_id=1956482105]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.087182954, 0.09568472)
 
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_3" index="0" unique_id=1663443802]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.032298412, -0.0006285459, 9.994209e-05)
+pixel_size = 0.0005
+text = "Fault"
+
 [node name="PilotBezel_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="62" unique_id=840756739]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667106, 0.09568472)
+
+[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_4" index="0" unique_id=387365219]
+transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.04487649, -0.0006169602, -0.00033386052)
+pixel_size = 0.0005
+text = "Running"
 
 [node name="PilotCollar_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="63" unique_id=1994944449]
 transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.17618296, 0.09468472)
@@ -44,68 +126,31 @@ transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667106,
 
 [node name="PilotLens_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="68" unique_id=2139203868]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.17618296, 0.09568472)
+surface_material_override/0 = SubResource("StandardMaterial3D_1gxo2")
 
 [node name="PilotLens_1" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="69" unique_id=624266939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.14618295, 0.09568472)
+surface_material_override/0 = SubResource("StandardMaterial3D_7iye2")
 
 [node name="PilotLens_2" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="70" unique_id=1149051362]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.11618297, 0.09568472)
+surface_material_override/0 = SubResource("StandardMaterial3D_c1jlu")
 
 [node name="PilotLens_3" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="71" unique_id=737338357]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.087182954, 0.09568472)
+surface_material_override/0 = SubResource("StandardMaterial3D_jwfuu")
 
 [node name="PilotLens_4" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="72" unique_id=1050479175]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00030298159, 0.057667106, 0.09568472)
+surface_material_override/0 = SubResource("StandardMaterial3D_ayml6")
 
 [node name="SwitchHandle" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="77" unique_id=1798801326]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.175, 0.21, 0.124)
 
-[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_0"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.025, 0, 0)
-pixel_size = 0.0005
-modulate = Color(1, 1, 1, 1)
-text = "ConnectionFaulted"
-font_size = 32
-
-[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_1"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.025, 0, 0)
-pixel_size = 0.0005
-modulate = Color(1, 1, 1, 1)
-text = "KeypadHandMode"
-font_size = 32
-
-[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.025, 0, 0)
-pixel_size = 0.0005
-modulate = Color(1, 1, 1, 1)
-text = "DisconnectClosed"
-font_size = 32
-
-[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.025, 0, 0)
-pixel_size = 0.0005
-modulate = Color(1, 1, 1, 1)
-text = "Fault"
-font_size = 32
-
-[node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.025, 0, 0)
-pixel_size = 0.0005
-modulate = Color(1, 1, 1, 1)
-text = "Running"
-font_size = 32
-
-[node name="NameLabel" type="Label3D" parent="APF/APF_Root/ControlPanel"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0.1)
-pixel_size = 0.001
-modulate = Color(1, 1, 1, 1)
-text = "APF"
-font_size = 64
-
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=627268408]
 collision_layer = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1374682122]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 shape = SubResource("BoxShape3D_collision")
 
