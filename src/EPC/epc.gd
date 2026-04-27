@@ -43,7 +43,7 @@ const PILOT_TRIPPED_COLOR: Color = Color(1, 0, 0, 1)
 		channel_2 = value
 
 @onready var _button_cap: Node3D = $EPC/EPC_Root/ButtonCap
-@onready var _pilot_lens: MeshInstance3D = $EPC/EPC_Root/ButtonGater
+@onready var _pilot_lens: MeshInstance3D = get_node_or_null("EPC/EPC_Root/ButtonGater") as MeshInstance3D
 @onready var _label: Label3D = $EPC/EPC_Root/TensionerNeck/Label
 
 var _button_cap_initial_y: float = 0.0
