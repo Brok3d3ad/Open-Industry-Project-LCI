@@ -635,9 +635,6 @@ func _on_keypad_r() -> void:
 
 
 func _animate_handle() -> void:
-
-
-func _animate_handle() -> void:
 	if not _switch_handle:
 		return
 	var target_y: float = HANDLE_CLOSED_ANGLE if disconnect_closed else HANDLE_OPEN_ANGLE
