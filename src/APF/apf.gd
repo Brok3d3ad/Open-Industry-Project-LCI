@@ -20,6 +20,10 @@ const FPM_TO_MS: float = 0.00508
 ## `commanded_velocity` is normalised against this full-scale value when
 ## computing the conveyor target — at 30 the drive runs at `design_fpm`.
 const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
+## Belt speed in FPM while keypad jog (R key) is engaged.
+const KEYPAD_JOG_FPM: float = 15.0
+## How far the pilot's interaction ray reaches for prompt detection.
+const PILOT_AIM_RANGE: float = 3.0
 
 # Local labels — never sent to PLC.
 @export var name_text: String = "APF":
@@ -48,12 +52,24 @@ const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
 		_update_status_visuals()
 
 ## true when the operator has the drive in keypad/hand mode. Red when true.
+## While true, PLC start/stop/direction/commanded_velocity are ignored —
+## the W (direction + run) and R (jog) keys command the drive instead.
+## Exiting (Q press in pilot mode) clears the keypad sub-state and stops
+## the drive; the PLC must issue a fresh start to resume remote control.
 @export var keypad_hand_mode: bool = false:
 	set(value):
+		var was_on: bool = keypad_hand_mode
 		if _keypad_hand_mode_tag.is_ready() and value != keypad_hand_mode:
 			_keypad_hand_mode_tag.write_bit(value)
 		keypad_hand_mode = value
+		if was_on and not keypad_hand_mode:
+			_keypad_running = false
+			_keypad_reverse = false
+			_keypad_jogging = false
+		# Re-evaluate `running` against the new mode (gate path changes).
+		running = true
 		_update_status_visuals()
+		_update_interaction_prompt()
 
 ## Disconnect switch closed (drive energised). Default true; pilot E-click
 ## flips it to false (handle rotates 90° → 0°). Red when false (NC fail-safe).
@@ -79,26 +95,45 @@ const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
 			running = false
 		_update_status_visuals()
 
-## true when the motor is running. Red when false (drive stopped). Setter
-## gates: assignment to true is ignored unless ALL of the following hold —
-## `start` (run bit) high, `stop` low, `commanded_velocity > 0`, and no
-## fault (`fault`, `connection_faulted`, `not disconnect_closed`).
+## true when the motor is running. Red when false (drive stopped). The
+## gate depends on the active mode:
+## - Remote (default): requires `start && !stop && commanded_velocity > 0`.
+## - Keypad (`keypad_hand_mode`): requires `_keypad_running` (W started)
+##   OR `_keypad_jogging` (R held). PLC start/stop/commanded are ignored.
+## Either way, no fault (`fault`, `connection_faulted`,
+## `not disconnect_closed`) is required.
 ##
-## Velocity tracking lives here: `velocity` mirrors `commanded_velocity`
-## when running and is forced to 0 when not — so any path that drops
-## `running` (fault, disconnect-open, stop, commanded → 0) also drops
-## the reported velocity in lockstep.
+## Velocity tracking lives here: in remote mode `velocity` mirrors
+## `commanded_velocity` while running; in keypad mode it reads back as
+## a fraction of full scale (jog ≈ 15/design_fpm, otherwise full).
 @export var running: bool = false:
 	set(value):
+		var operational: bool
+		if keypad_hand_mode:
+			operational = _keypad_running or _keypad_jogging
+		else:
+			operational = start and not stop and commanded_velocity > 0.0
 		var gated: bool = (value
-				and start and not stop
-				and commanded_velocity > 0.0
+				and operational
 				and not fault and disconnect_closed and not connection_faulted)
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
 		running = gated
-		velocity = commanded_velocity if running else 0.0
+		velocity = _compute_reported_velocity() if running else 0.0
 		_update_status_visuals()
+
+
+## Reported `velocity` for the running PLC tag. In remote mode it mirrors
+## the PLC's command; in keypad mode it reflects the keypad-commanded
+## fraction of full scale so the PLC sees a sensible number.
+func _compute_reported_velocity() -> float:
+	if not keypad_hand_mode:
+		return commanded_velocity
+	if _keypad_jogging:
+		return KEYPAD_JOG_FPM / float(design_fpm) * COMMANDED_VELOCITY_FULL_SCALE
+	if _keypad_running:
+		return COMMANDED_VELOCITY_FULL_SCALE
+	return 0.0
 
 ## Reported output current (REAL). Auto-computed as 2 × velocity; setter still
 ## writes to PLC when assigned externally.
@@ -269,6 +304,7 @@ const STATUS_COUNT: int = 5
 @onready var _switch_handle: Node3D = $APF/APF_Root/SwitchHandle
 @onready var _name_label: Label3D = get_node_or_null("APF/APF_Root/ControlPanel/NameLabel") as Label3D
 @onready var _fpm_label: Label3D = get_node_or_null("APF/APF_Root/ControlPanel/FpmLabel") as Label3D
+@onready var _interaction_prompt: Label3D = get_node_or_null("InteractionPrompt") as Label3D
 @onready var _status_labels: Array[Label3D] = [
 	get_node_or_null("APF/APF_Root/PilotBezel_0/StatusLabel") as Label3D,
 	get_node_or_null("APF/APF_Root/PilotBezel_1/StatusLabel") as Label3D,
@@ -311,6 +347,13 @@ var _conveyor: Node = null
 var _belt_speed: float = 0.0
 var _ramp_rate: float = 0.0
 var _last_ramp_target: float = 0.0
+var _pilot_aiming: bool = false
+var _keypad_running: bool = false
+var _keypad_reverse: bool = false
+var _keypad_jogging: bool = false
+var _prev_q: bool = false
+var _prev_w: bool = false
+var _prev_r: bool = false
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -357,6 +400,8 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if _name_label:
 		_name_label.text = name_text
+	if _interaction_prompt:
+		_interaction_prompt.visible = false
 	_resolve_conveyor()
 	_update_fpm_label()
 	_apply_handle_position()
@@ -365,6 +410,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not _simulating:
+		if _pilot_aiming:
+			_pilot_aiming = false
+			_update_interaction_prompt()
 		return
 	_trip_elapsed += delta
 	if _trip_elapsed >= auto_trip_interval_minutes * 60.0:
@@ -374,6 +422,9 @@ func _process(delta: float) -> void:
 	if _connection_elapsed >= auto_connection_fault_interval_minutes * 60.0:
 		_connection_elapsed = 0.0
 		_trigger_connection_fault()
+	_update_pilot_aim()
+	if _pilot_aiming:
+		_poll_keypad_inputs()
 
 
 func _physics_process(delta: float) -> void:
@@ -424,20 +475,31 @@ func _resolve_conveyor() -> void:
 
 
 ## Target belt speed in m/s based on running + direction bits + commanded
-## velocity. The PLC's `commanded_velocity` is normalised against
+## velocity. In remote mode `commanded_velocity` is normalised against
 ## `COMMANDED_VELOCITY_FULL_SCALE` (30): at 30 the drive runs at
 ## `design_fpm` (FPM); below scales linearly down to 0; above scales up.
 ## Both direction bits true OR both false → 0 (no commanded direction).
+##
+## In keypad mode the PLC inputs are ignored; speed is `KEYPAD_JOG_FPM`
+## while jogging, otherwise `design_fpm`, signed by `_keypad_reverse`.
 func _compute_target_belt_speed() -> float:
 	if not running:
 		return 0.0
-	var fwd: bool = direction_cmd_0 and not direction_cmd_1
-	var rev: bool = direction_cmd_1 and not direction_cmd_0
-	if not fwd and not rev:
-		return 0.0
-	var velocity_scale: float = abs(commanded_velocity) / COMMANDED_VELOCITY_FULL_SCALE
-	var mag: float = velocity_scale * float(design_fpm) * FPM_TO_MS
-	return mag if fwd else -mag
+	var dir_fwd: bool
+	var fpm: float
+	if keypad_hand_mode:
+		fpm = KEYPAD_JOG_FPM if _keypad_jogging else float(design_fpm)
+		dir_fwd = not _keypad_reverse
+	else:
+		var fwd: bool = direction_cmd_0 and not direction_cmd_1
+		var rev: bool = direction_cmd_1 and not direction_cmd_0
+		if not fwd and not rev:
+			return 0.0
+		dir_fwd = fwd
+		var velocity_scale: float = abs(commanded_velocity) / COMMANDED_VELOCITY_FULL_SCALE
+		fpm = velocity_scale * float(design_fpm)
+	var mag: float = fpm * FPM_TO_MS
+	return mag if dir_fwd else -mag
 
 
 ## Step `_belt_speed` toward `target` by one frame's worth of ramp. The
@@ -475,6 +537,104 @@ func _update_fpm_label() -> void:
 		return
 	var fpm: int = int(round(abs(_belt_speed) / FPM_TO_MS))
 	_fpm_label.text = "FPM %d" % fpm
+
+
+## Cast a ray forward from the active camera (the pilot's first-person
+## view in simulation) and check whether the closest hit's parent chain
+## reaches this APF. Updates `_pilot_aiming` and the prompt visibility.
+func _update_pilot_aim() -> void:
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	var aiming: bool = false
+	if camera:
+		var origin: Vector3 = camera.global_position
+		var to: Vector3 = origin - camera.global_transform.basis.z * PILOT_AIM_RANGE
+		var space := get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(origin, to)
+		var result := space.intersect_ray(query)
+		if result and result.has("collider"):
+			var node: Node = result.collider
+			while node:
+				if node == self:
+					aiming = true
+					break
+				node = node.get_parent()
+	if aiming != _pilot_aiming:
+		_pilot_aiming = aiming
+		_prev_q = false
+		_prev_w = false
+		_prev_r = false
+		_update_interaction_prompt()
+
+
+## Rebuild the multi-line interaction label shown when the pilot is
+## aimed at this APF. Mirrors the `editor-pilot-mode` E-prompt style.
+func _update_interaction_prompt() -> void:
+	if not _interaction_prompt:
+		return
+	_interaction_prompt.visible = _pilot_aiming
+	if not _pilot_aiming:
+		return
+	var lines: Array[String] = []
+	lines.append("[E] %s" % ("Open Disconnect" if disconnect_closed else "Close Disconnect"))
+	lines.append("[Q] %s" % ("Exit Keypad" if keypad_hand_mode else "Enter Keypad"))
+	if keypad_hand_mode:
+		if _keypad_running:
+			var dir_label: String = "Forward" if _keypad_reverse else "Reverse"
+			lines.append("[W] Toggle direction (next: %s)" % dir_label)
+		else:
+			lines.append("[W] Run (Reverse)")
+		lines.append("[R] %s (%d FPM)" % [
+			"Stop Jog" if _keypad_jogging else "Jog",
+			int(KEYPAD_JOG_FPM),
+		])
+	_interaction_prompt.text = "\n".join(lines)
+
+
+## Just-pressed detection on Q / W / R (R/W not registered as InputMap
+## actions in this project — use raw physical-key polling). Q/W/R only
+## fire while the pilot is aimed at this APF.
+func _poll_keypad_inputs() -> void:
+	var q_now: bool = Input.is_physical_key_pressed(KEY_Q)
+	var w_now: bool = Input.is_physical_key_pressed(KEY_W)
+	var r_now: bool = Input.is_physical_key_pressed(KEY_R)
+	if q_now and not _prev_q:
+		_toggle_keypad_hand_mode()
+	if keypad_hand_mode:
+		if w_now and not _prev_w:
+			_on_keypad_w()
+		if r_now and not _prev_r:
+			_on_keypad_r()
+	_prev_q = q_now
+	_prev_w = w_now
+	_prev_r = r_now
+
+
+func _toggle_keypad_hand_mode() -> void:
+	keypad_hand_mode = not keypad_hand_mode
+	# `keypad_hand_mode` setter handles state cleanup + running re-eval.
+
+
+## W press in keypad mode: first press starts the drive in reverse;
+## subsequent presses flip direction while keeping it running.
+func _on_keypad_w() -> void:
+	if not _keypad_running:
+		_keypad_running = true
+		_keypad_reverse = true
+	else:
+		_keypad_reverse = not _keypad_reverse
+	running = true
+	_update_interaction_prompt()
+
+
+## R press in keypad mode: toggle the jog state. While jogging, target
+## belt speed is `KEYPAD_JOG_FPM` regardless of `_keypad_running`.
+func _on_keypad_r() -> void:
+	_keypad_jogging = not _keypad_jogging
+	running = true
+	_update_interaction_prompt()
+
+
+func _animate_handle() -> void:
 
 
 func _animate_handle() -> void:

@@ -43,15 +43,16 @@ emission = Color(0, 1, 0, 1)
 resource_local_to_scene = true
 resource_name = "Pilot_Amber"
 cull_mode = 2
-albedo_color = Color(0, 1, 0, 1)
+albedo_color = Color(1, 0, 0, 1)
 roughness = 0.2
 emission_enabled = true
-emission = Color(0, 1, 0, 1)
+emission = Color(1, 0, 0, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
 size = Vector3(0.5, 1.2, 0.4)
 
 [node name="Apf" type="Node3D" unique_id=1771393318]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
@@ -66,7 +67,7 @@ font_size = 64
 [node name="FpmLabel" type="Label3D" parent="APF/APF_Root/ControlPanel" parent_id_path=PackedInt32Array(405128982, 1517462370) index="1" unique_id=1903567270]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.27032977, -0.049049065, 0.003915906)
 pixel_size = 0.0005
-text = "FPM 30"
+text = "FPM 0"
 font_size = 48
 
 [node name="PilotBezel_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="58" unique_id=1727076040]
@@ -107,6 +108,7 @@ transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.00030298159, 0.057667106,
 [node name="StatusLabel" type="Label3D" parent="APF/APF_Root/PilotBezel_4" index="0" unique_id=387365219]
 transform = Transform3D(1, 2.6226832e-07, 8.7422784e-08, -8.742277e-08, -4.371141e-08, 1, 2.6226832e-07, -1, -4.371139e-08, 0.04487649, -0.0006169602, -0.00033386052)
 pixel_size = 0.0005
+modulate = Color(1, 0, 0, 1)
 text = "Running"
 
 [node name="PilotCollar_0" parent="APF/APF_Root" parent_id_path=PackedInt32Array(405128982, 984471223) index="63" unique_id=1994944449]
@@ -153,5 +155,17 @@ collision_layer = 3
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1374682122]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 shape = SubResource("BoxShape3D_collision")
+
+[node name="InteractionPrompt" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0.2)
+billboard = 1
+no_depth_test = true
+pixel_size = 0.0006
+modulate = Color(1, 1, 1, 1)
+outline_modulate = Color(0, 0, 0, 1)
+outline_size = 4
+text = ""
+font_size = 28
+visible = false
 
 [editable path="APF"]
