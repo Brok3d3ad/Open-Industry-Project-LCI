@@ -17,6 +17,9 @@ const HANDLE_TWEEN_DURATION: float = 0.15
 const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
 ## Standard conversion: 1 foot per minute = 0.00508 m/s.
 const FPM_TO_MS: float = 0.00508
+## `commanded_velocity` is normalised against this full-scale value when
+## computing the conveyor target — at 30 the drive runs at `design_fpm`.
+const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
 
 # Local labels — never sent to PLC.
 @export var name_text: String = "APF":
@@ -25,9 +28,9 @@ const FPM_TO_MS: float = 0.00508
 		if _name_label:
 			_name_label.text = name_text
 
-## Design FPM rating of the drive (inspector reference only — not a tag,
-## not displayed). Kept for parity with the spec; the visible FPM label
-## tracks the PLC's `commanded_fpm`.
+## Design FPM rating of the drive — the belt speed at full
+## `commanded_velocity`. Local property (not a tag). The visible FPM
+## label tracks the live ramped belt speed.
 @export var design_fpm: int = 30
 
 
@@ -174,8 +177,8 @@ func _handle_connection_fault_on_demand() -> void:
 
 ## The conveyor (BeltConveyor / RollerConveyor / assembly) this drive
 ## controls. Leave empty to run the APF as a stand-alone drive sim.
-## The script writes `commanded_fpm` (converted to m/s) to the target's
-## `speed` property, sign-flipped per direction bits, and ramped over
+## Belt speed = (commanded_velocity / 30) × design_fpm × FPM_TO_MS,
+## signed per direction bits, ramped over
 ## `dynamic_accel_time` / `dynamic_decel_time`.
 @export var conveyor_path: NodePath:
 	set(value):
@@ -193,12 +196,11 @@ func _handle_connection_fault_on_demand() -> void:
 @export var direction_cmd_0: bool = false
 ## PLC direction bit 1 (BOOL).
 @export var direction_cmd_1: bool = false
-## PLC commanded velocity (REAL).
+## PLC commanded velocity (REAL). Drives the conveyor speed setpoint:
+## scaled against `COMMANDED_VELOCITY_FULL_SCALE` (30) and multiplied by
+## `design_fpm` to get the target belt speed in FPM. The `FpmLabel`
+## follows the live ramped speed, not this command directly.
 @export var commanded_velocity: float = 0.0
-## PLC commanded FPM (DINT). Drives the conveyor speed setpoint via
-## `_compute_target_belt_speed()` (the `FpmLabel` follows the live
-## ramped speed, not this command directly).
-@export var commanded_fpm: int = 0
 ## PLC clear-fault command (BOOL). Rising edge clears `trip_fault_code` and `fault`.
 @export var clear_fault: bool = false
 ## PLC dynamic accel time (REAL).
@@ -249,8 +251,6 @@ func _handle_connection_fault_on_demand() -> void:
 @export var direction_cmd_1_tag_name: String = ""
 ## CommandedVelocity tag.[br]Datatype: [code]REAL[/code]
 @export var commanded_velocity_tag_name: String = ""
-## CommandedFPM tag.[br]Datatype: [code]DINT[/code]
-@export var commanded_fpm_tag_name: String = ""
 ## ClearFault tag.[br]Datatype: [code]BOOL[/code] — rising edge clears `trip_fault_code` and `fault`.
 @export var clear_fault_tag_name: String = ""
 ## DynamicAccelTime tag.[br]Datatype: [code]REAL[/code]
@@ -295,7 +295,6 @@ var _start_tag := OIPCommsTag.new()
 var _direction_cmd_0_tag := OIPCommsTag.new()
 var _direction_cmd_1_tag := OIPCommsTag.new()
 var _commanded_velocity_tag := OIPCommsTag.new()
-var _commanded_fpm_tag := OIPCommsTag.new()
 var _clear_fault_tag := OIPCommsTag.new()
 var _dynamic_accel_time_tag := OIPCommsTag.new()
 var _dynamic_decel_time_tag := OIPCommsTag.new()
@@ -316,7 +315,7 @@ func _validate_property(property: Dictionary) -> void:
 		"fault", "running",
 		"output_current", "output_voltage", "velocity", "trip_fault_code",
 		"stop", "start", "direction_cmd_0", "direction_cmd_1",
-		"commanded_velocity", "commanded_fpm", "clear_fault",
+		"commanded_velocity", "clear_fault",
 		"dynamic_accel_time", "dynamic_decel_time",
 	]
 	if property.name in read_only_props:
@@ -330,8 +329,7 @@ func _validate_property(property: Dictionary) -> void:
 		"velocity_tag_name", "trip_fault_code_tag_name",
 		"stop_tag_name", "start_tag_name",
 		"direction_cmd_0_tag_name", "direction_cmd_1_tag_name",
-		"commanded_velocity_tag_name", "commanded_fpm_tag_name",
-		"clear_fault_tag_name",
+		"commanded_velocity_tag_name", "clear_fault_tag_name",
 		"dynamic_accel_time_tag_name", "dynamic_decel_time_tag_name",
 	]
 	for field: String in tag_fields:
@@ -420,7 +418,10 @@ func _resolve_conveyor() -> void:
 	_conveyor = get_node_or_null(conveyor_path)
 
 
-## Target belt speed in m/s based on running + direction bits + commanded FPM.
+## Target belt speed in m/s based on running + direction bits + commanded
+## velocity. The PLC's `commanded_velocity` is normalised against
+## `COMMANDED_VELOCITY_FULL_SCALE` (30): at 30 the drive runs at
+## `design_fpm` (FPM); below scales linearly down to 0; above scales up.
 ## Both direction bits true OR both false → 0 (no commanded direction).
 func _compute_target_belt_speed() -> float:
 	if not running:
@@ -429,14 +430,16 @@ func _compute_target_belt_speed() -> float:
 	var rev: bool = direction_cmd_1 and not direction_cmd_0
 	if not fwd and not rev:
 		return 0.0
-	var mag: float = float(commanded_fpm) * FPM_TO_MS
+	var scale: float = abs(commanded_velocity) / COMMANDED_VELOCITY_FULL_SCALE
+	var mag: float = scale * float(design_fpm) * FPM_TO_MS
 	return mag if fwd else -mag
 
 
 ## Step `_belt_speed` toward `target` by one frame's worth of ramp. Picks
 ## `dynamic_accel_time` when we're moving away from zero (speed magnitude
 ## growing), `dynamic_decel_time` when we're moving toward zero (magnitude
-## shrinking, including reversing through zero).
+## shrinking, including reversing through zero). Slope is sized so the
+## chosen ramp time means "current → target in N seconds".
 func _advance_belt_speed(target: float, delta: float) -> void:
 	var diff: float = target - _belt_speed
 	var direction: float = signf(diff)
@@ -445,12 +448,8 @@ func _advance_belt_speed(target: float, delta: float) -> void:
 	if ramp_time <= 0.0:
 		_belt_speed = target
 		return
-	# Use commanded magnitude as the "full-scale" speed for the ramp slope so
-	# accel_time means "0 → commanded in N seconds" regardless of |target|.
-	var max_speed: float = abs(commanded_fpm) * FPM_TO_MS
-	if max_speed <= 0.0:
-		max_speed = abs(target) if not is_zero_approx(target) else abs(_belt_speed)
-	var rate: float = max_speed / ramp_time
+	var slope_speed: float = abs(target) if not is_zero_approx(target) else abs(_belt_speed)
+	var rate: float = slope_speed / ramp_time
 	var step: float = direction * rate * delta
 	if abs(step) >= abs(diff):
 		_belt_speed = target
@@ -561,7 +560,6 @@ func _on_simulation_started() -> void:
 	_direction_cmd_0_tag.register(tag_group_name, direction_cmd_0_tag_name)
 	_direction_cmd_1_tag.register(tag_group_name, direction_cmd_1_tag_name)
 	_commanded_velocity_tag.register(tag_group_name, commanded_velocity_tag_name)
-	_commanded_fpm_tag.register(tag_group_name, commanded_fpm_tag_name)
 	_clear_fault_tag.register(tag_group_name, clear_fault_tag_name)
 	_dynamic_accel_time_tag.register(tag_group_name, dynamic_accel_time_tag_name)
 	_dynamic_decel_time_tag.register(tag_group_name, dynamic_decel_time_tag_name)
@@ -592,7 +590,6 @@ func _tag_group_initialized(group: String) -> void:
 	_direction_cmd_0_tag.on_group_initialized(group)
 	_direction_cmd_1_tag.on_group_initialized(group)
 	_commanded_velocity_tag.on_group_initialized(group)
-	_commanded_fpm_tag.on_group_initialized(group)
 	_clear_fault_tag.on_group_initialized(group)
 	_dynamic_accel_time_tag.on_group_initialized(group)
 	_dynamic_decel_time_tag.on_group_initialized(group)
@@ -618,8 +615,6 @@ func _tag_group_polled(group: String) -> void:
 		# mirrors `commanded_velocity` (which also recomputes output_current
 		# and re-evaluates `running` via the velocity setter).
 		velocity = commanded_velocity
-	if _commanded_fpm_tag.matches_group(group):
-		commanded_fpm = _commanded_fpm_tag.read_int32()
 	if _clear_fault_tag.matches_group(group):
 		var new_clear: bool = _clear_fault_tag.read_bit()
 		# Rising edge → clear both the generated trip code and the fault flag.
