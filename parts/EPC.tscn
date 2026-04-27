@@ -1,8 +1,10 @@
-[gd_scene format=3 uid="uid://cvhnxgfwoorqq"]
+[gd_scene load_steps=4 format=3 uid="uid://cvhnxgfwoorqq"]
 
 [ext_resource type="PackedScene" uid="uid://chxou2ij57s3g" path="res://assets/3DModels/EPC/EPC.glb" id="1_myfbq"]
 [ext_resource type="Script" uid="uid://bg0ew208nyvox" path="res://src/EPC/epc.gd" id="2_script"]
-[ext_resource type="Script" path="res://src/EPC/epc_use_proxy.gd" id="3_proxy"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
+size = Vector3(0.2, 0.15, 0.1)
 
 [node name="EPC" type="Node3D" unique_id=872549758]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
@@ -11,14 +13,18 @@ tag_group_name = "TagGroup0"
 
 [node name="EPC" parent="." unique_id=222179672 instance=ExtResource("1_myfbq")]
 
-[node name="ButtonCap" parent="EPC/EPC_Root"]
-script = ExtResource("3_proxy")
-
 [node name="Label" type="Label3D" parent="EPC/EPC_Root/TensionerNeck" parent_id_path=PackedInt32Array(222179672, 252366074) index="0" unique_id=1603350041]
 transform = Transform3D(0.5377053, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0.025646964, -0.0011039004)
 pixel_size = 0.0004
 modulate = Color(0, 0, 0, 1)
 text = "EPC"
 font_size = 64
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+shape = SubResource("BoxShape3D_collision")
 
 [editable path="EPC"]
