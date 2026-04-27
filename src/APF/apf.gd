@@ -81,17 +81,23 @@ const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
 
 ## true when the motor is running. Red when false (drive stopped). Setter
 ## gates: assignment to true is ignored unless ALL of the following hold —
-## `start` (run bit from PLC) is high, `stop` is low, `velocity` is non-zero,
-## and there is no fault (`fault`, `connection_faulted`, `not disconnect_closed`).
+## `start` (run bit) high, `stop` low, `commanded_velocity > 0`, and no
+## fault (`fault`, `connection_faulted`, `not disconnect_closed`).
+##
+## Velocity tracking lives here: `velocity` mirrors `commanded_velocity`
+## when running and is forced to 0 when not — so any path that drops
+## `running` (fault, disconnect-open, stop, commanded → 0) also drops
+## the reported velocity in lockstep.
 @export var running: bool = false:
 	set(value):
 		var gated: bool = (value
 				and start and not stop
-				and velocity > 0.0
+				and commanded_velocity > 0.0
 				and not fault and disconnect_closed and not connection_faulted)
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
 		running = gated
+		velocity = commanded_velocity if running else 0.0
 		_update_status_visuals()
 
 ## Reported output current (REAL). Auto-computed as 2 × velocity; setter still
@@ -109,18 +115,15 @@ const COMMANDED_VELOCITY_FULL_SCALE: float = 30.0
 			_output_voltage_tag.write_float32(value)
 		output_voltage = value
 
-## Reported motor velocity (REAL). Setting velocity also recomputes
-## `output_current = velocity * 2` (per spec). When velocity falls to
-## zero the running setter's gate forces `running = false`.
-@export var velocity: float = 30.0:
+## Reported motor velocity (REAL). Driven by the `running` setter:
+## mirrors `commanded_velocity` while running, snaps to 0 when stopped.
+## Also recomputes `output_current = velocity * 2` (per spec).
+@export var velocity: float = 0.0:
 	set(value):
 		if _velocity_tag.is_ready() and value != velocity:
 			_velocity_tag.write_float32(value)
 		velocity = value
 		output_current = velocity * 2.0
-		# Re-run the gate against the new velocity. The setter denies if
-		# velocity is 0; otherwise lets through whatever start/stop says.
-		running = start and not stop
 
 ## Generated trip fault code (DINT). Cleared to 0 on `clear_fault` rising edge.
 @export var trip_fault_code: int = 0:
@@ -621,10 +624,9 @@ func _tag_group_polled(group: String) -> void:
 		direction_cmd_1 = _direction_cmd_1_tag.read_bit()
 	if _commanded_velocity_tag.matches_group(group):
 		commanded_velocity = _commanded_velocity_tag.read_float32()
-		# The drive simulation tracks the PLC's command — output velocity
-		# mirrors `commanded_velocity` (which also recomputes output_current
-		# and re-evaluates `running` via the velocity setter).
-		velocity = commanded_velocity
+		# `running` setter gates on `commanded_velocity > 0` and drives
+		# `velocity` from the new value, so a refresh is the right hook.
+		refresh_run = true
 	if _clear_fault_tag.matches_group(group):
 		var new_clear: bool = _clear_fault_tag.read_bit()
 		# Rising edge → clear both the generated trip code and the fault flag.
