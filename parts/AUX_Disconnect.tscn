@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://cbo8b2w2eag35"]
+
+[ext_resource type="PackedScene" uid="uid://2w7mwsor8nsq" path="res://assets/3DModels/AUX_Disconnect/AUX_Disconnect.glb" id="1_yxumu"]
+[ext_resource type="Script" uid="uid://c0cyr5h43eu7v" path="res://src/AuxDisconnect/aux_disconnect.gd" id="2_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
+size = Vector3(0.4, 0.6, 0.2)
+
+[node name="AuxDisconnect" type="Node3D" unique_id=857668390]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+script = ExtResource("2_script")
+tag_group_name = "TagGroup0"
+
+[node name="AUX_Disconnect" parent="." unique_id=409729592 instance=ExtResource("1_yxumu")]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=179917423]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500342]
+shape = SubResource("BoxShape3D_collision")
+
+[editable path="AUX_Disconnect"]

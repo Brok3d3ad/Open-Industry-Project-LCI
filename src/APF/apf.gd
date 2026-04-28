@@ -236,6 +236,17 @@ func _handle_connection_fault_on_demand() -> void:
 		epc_paths = value
 		_resolve_epcs()
 
+## Optional auxiliary disconnects coupled to this drive. While **any**
+## assigned aux is tripped, `connection_faulted` is forced HIGH (treated
+## as a comms loss). On the rising edge of any aux trip a fresh random
+## `trip_fault_code` is generated and `fault` is set. Closing all auxes
+## clears `connection_faulted` (the latched fault must still be cleared
+## via the PLC `clear_fault` rising edge).
+@export var aux_disconnect_paths: Array[NodePath]:
+	set(value):
+		aux_disconnect_paths = value
+		_resolve_aux_disconnects()
+
 
 @export_category("Conveyor Coupling")
 
@@ -379,6 +390,8 @@ var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
 var _conveyor: Node = null
 var _epcs: Array[Node] = []
+var _aux_disconnects: Array[Node] = []
+var _aux_tripped_prev: bool = false
 var _belt_speed: float = 0.0
 var _ramp_rate: float = 0.0
 var _last_ramp_target: float = 0.0
@@ -439,6 +452,7 @@ func _ready() -> void:
 		_interaction_prompt.visible = false
 	_resolve_conveyor()
 	_resolve_epcs()
+	_resolve_aux_disconnects()
 	_update_fpm_label()
 	_apply_handle_position()
 	_update_status_visuals()
@@ -470,6 +484,7 @@ func _physics_process(delta: float) -> void:
 	if _pilot_aiming:
 		_poll_keypad_inputs()
 	_poll_safe_torque()
+	_poll_aux_state()
 	var target: float = _compute_target_belt_speed()
 	if not is_equal_approx(_belt_speed, target):
 		_advance_belt_speed(target, delta)
@@ -536,6 +551,50 @@ func _poll_safe_torque() -> void:
 	var new_sto: bool = not _any_epc_tripped()
 	if new_sto != safe_torque_enabled:
 		safe_torque_enabled = new_sto
+
+
+## Resolve every NodePath in `aux_disconnect_paths` to a live node.
+## Mirrors `_resolve_epcs`.
+func _resolve_aux_disconnects() -> void:
+	_aux_disconnects.clear()
+	if not is_inside_tree():
+		return
+	for path: NodePath in aux_disconnect_paths:
+		if path.is_empty():
+			continue
+		var node: Node = get_node_or_null(path)
+		if node:
+			_aux_disconnects.append(node)
+
+
+## Returns true if any assigned auxiliary disconnect is tripped.
+func _any_aux_tripped() -> bool:
+	for aux: Node in _aux_disconnects:
+		if not is_instance_valid(aux):
+			continue
+		if "tripped" in aux and bool(aux.get("tripped")):
+			return true
+	return false
+
+
+## Poll the assigned aux-disconnect chain. While any aux is tripped,
+## `connection_faulted` is forced HIGH; on the rising edge a fresh random
+## trip code is generated. Closing all auxes drops `connection_faulted`
+## back to false; the latched `fault` requires a PLC clear-fault edge.
+func _poll_aux_state() -> void:
+	var now: bool = _any_aux_tripped()
+	if now == _aux_tripped_prev:
+		return
+	if now:
+		# Rising edge: latch a trip code and force comms fault.
+		_trigger_random_trip()
+		if not connection_faulted:
+			connection_faulted = true
+	else:
+		# Falling edge: release the comms-fault gate. `fault` stays latched.
+		if connection_faulted:
+			connection_faulted = false
+	_aux_tripped_prev = now
 
 
 func _resolve_conveyor() -> void:
