@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://daygkuot0fmav"]
+
+[ext_resource type="PackedScene" uid="uid://dnfqlnhonvbb3" path="res://assets/3DModels/Chutes/chute_type_2.glb" id="1_s5w4l"]
+[ext_resource type="Material" uid="uid://hc23104chvqt" path="res://assets/3DModels/Chutes/chute_material.tres" id="2_s5w4l"]
+
+[node name="Chute_D2C" type="Node3D" unique_id=661981547]
+
+[node name="chute_type_2" parent="." unique_id=506519686 instance=ExtResource("1_s5w4l")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.717602, -1.3162961)
+
+[node name="Chute" parent="chute_type_2" index="0" unique_id=763461162]
+surface_material_override/0 = ExtResource("2_s5w4l")
+
+[editable path="chute_type_2"]

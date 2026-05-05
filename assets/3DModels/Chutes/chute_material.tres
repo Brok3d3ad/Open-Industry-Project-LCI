@@ -1,0 +1,7 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://hc23104chvqt"]
+
+[ext_resource type="Texture2D" uid="uid://dbpgowco6x1u6" path="res://assets/3DModels/ConveyorRollerCorner_Metal.png" id="1_8lsno"]
+
+[resource]
+albedo_texture = ExtResource("1_8lsno")
+uv1_scale = Vector3(16, 16, 16)
