@@ -2,6 +2,9 @@
 class_name DiverterAnimator
 extends Node3D
 
+## Emitted after the push + return tween completes and the pusher is back at rest.
+signal divert_finished
+
 enum LightColor {
 	Red = 3,
 	Green = 4
@@ -75,3 +78,4 @@ func _finish() -> void:
 	_part_end.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	_set_lamp_light(LightColor.Green, false)
 	_firing = false
+	divert_finished.emit()

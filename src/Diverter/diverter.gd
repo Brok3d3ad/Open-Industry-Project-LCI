@@ -11,15 +11,14 @@ extends Node3D
 
 var size: Vector3 = Vector3(0.722, 1.2, 2.127)
 
-var _fire_divert: bool = false:
-	set(value):
-		_fire_divert = value
-		await get_tree().create_timer(0.3).timeout
-		_fire_divert = false
-
-var _cycled: bool = true
+## True from the moment `divert()` accepts a request until the animator's
+## `divert_finished` signal fires. Used as a lockout so neither the comms
+## tag nor a manual trigger can start a second cycle mid-animation.
 var _diverting: bool = false
-var _previous_fire_divert_state: bool = false
+## Most recent value seen on the comms tag — used for rising-edge detection
+## in `_tag_group_polled`. Primed on group init so a tag that is already
+## TRUE at sim start doesn't synthesise a false→true transition.
+var _last_tag_value: bool = false
 var _tag := OIPCommsTag.new()
 @onready var _diverter_animator: DiverterAnimator = $DiverterAnimator
 
@@ -50,6 +49,11 @@ func _exit_tree() -> void:
 		return
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+
+func _ready() -> void:
+	if has_meta("is_preview"):
+		return
+	_diverter_animator.divert_finished.connect(_on_divert_finished)
 
 func get_snap_features() -> Array:
 	return [
@@ -85,20 +89,17 @@ func _disable_collisions_recursive(node: Node) -> void:
 func use() -> void:
 	divert()
 
+## Start a divert cycle if one isn't already running. Manual triggers
+## (editor button, pilot E key) and the comms tag all funnel through here
+## so the lockout applies uniformly.
 func divert() -> void:
-	_fire_divert = true
+	if _diverting:
+		return
+	_diverting = true
+	_diverter_animator.fire(divert_time, divert_distance)
 
-func _physics_process(delta: float) -> void:
-	if _fire_divert and not _previous_fire_divert_state:
-		_diverting = true
-		_cycled = false
-
-	if _diverting and not _cycled:
-		_diverter_animator.fire(divert_time, divert_distance)
-		_diverting = false
-		_cycled = true
-
-	_previous_fire_divert_state = _fire_divert
+func _on_divert_finished() -> void:
+	_diverting = false
 
 func _on_simulation_started() -> void:
 	if enable_comms:
@@ -106,9 +107,19 @@ func _on_simulation_started() -> void:
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if _tag.on_group_initialized(tag_group_name_param):
-		_tag.write_bit(_fire_divert)
+		# Prime the edge detector so a tag latched HIGH at startup is
+		# remembered as the resting state, not treated as a fresh trigger.
+		_last_tag_value = _tag.read_bit()
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms or not _tag.matches_group(tag_group_name_param):
 		return
-	_fire_divert = _tag.read_bit()
+	# Lockout: while the pusher is mid-cycle, ignore the tag entirely —
+	# don't read it, don't update `_last_tag_value`. Any transitions that
+	# happen during this window are dropped on purpose.
+	if _diverting:
+		return
+	var current: bool = _tag.read_bit()
+	if current and not _last_tag_value:
+		divert()
+	_last_tag_value = current
