@@ -14,7 +14,12 @@ const PILOT_BAD_COLOR: Color = Color(1, 0, 0, 1)
 const HANDLE_CLOSED_ANGLE: float = 0.0
 const HANDLE_OPEN_ANGLE: float = PI / 2.0
 const HANDLE_TWEEN_DURATION: float = 0.15
-const TRIP_FAULT_CODE_RANGE: Vector2i = Vector2i(1000, 9999)
+## JSON file holding real PowerFlex / CIP fault codes the drive can trip
+## on. Loaded once on first trip and cached across every APF instance.
+const FAULT_CODES_PATH: String = "res://assets/data/apf_fault_codes.json"
+## Used if the file is missing or empty so the simulation still produces
+## a non-zero fault code.
+const FALLBACK_FAULT_CODE: int = 0x00010004  # "Hardware Problem Detected"
 ## Standard conversion: 1 foot per minute = 0.00508 m/s.
 const FPM_TO_MS: float = 0.00508
 ## `commanded_velocity` is normalised against this full-scale value when
@@ -534,11 +539,50 @@ func use() -> void:
 	disconnect_closed = not disconnect_closed
 
 
-## Set fault + a fresh random trip code. No-op if already faulted.
+## Static cache of real CIP/PowerFlex fault codes parsed from
+## `FAULT_CODES_PATH`. Populated lazily on first call to
+## `_ensure_fault_codes_loaded` and shared across every APF instance.
+static var _fault_codes_cache: PackedInt32Array
+
+
+## Load the fault-code list once. The file is a flat JSON array of hex
+## strings (e.g. `["0x00010004", "0x00080001", ...]`) — already filtered
+## upstream to only entries that trip the drive.
+static func _ensure_fault_codes_loaded() -> void:
+	if not _fault_codes_cache.is_empty():
+		return
+	var f := FileAccess.open(FAULT_CODES_PATH, FileAccess.READ)
+	if not f:
+		_fault_codes_cache = PackedInt32Array([FALLBACK_FAULT_CODE])
+		push_warning("APF: fault-code file missing at %s; using fallback." % FAULT_CODES_PATH)
+		return
+	var json_text: String = f.get_as_text()
+	f.close()
+	var parsed: Variant = JSON.parse_string(json_text)
+	if not (parsed is Array):
+		_fault_codes_cache = PackedInt32Array([FALLBACK_FAULT_CODE])
+		push_warning("APF: fault-code JSON malformed; using fallback.")
+		return
+	var out: PackedInt32Array = PackedInt32Array()
+	for entry: Variant in (parsed as Array):
+		var code_str: String = String(entry)
+		if code_str.is_empty():
+			continue
+		var code: int = code_str.hex_to_int() if code_str.begins_with("0x") else code_str.to_int()
+		if code != 0:
+			out.append(code)
+	if out.is_empty():
+		out.append(FALLBACK_FAULT_CODE)
+	_fault_codes_cache = out
+
+
+## Set fault + a fresh trip code drawn from the real CIP fault list.
+## No-op if already faulted.
 func _trigger_random_trip() -> void:
 	if fault:
 		return
-	trip_fault_code = randi_range(TRIP_FAULT_CODE_RANGE.x, TRIP_FAULT_CODE_RANGE.y)
+	_ensure_fault_codes_loaded()
+	trip_fault_code = _fault_codes_cache[randi() % _fault_codes_cache.size()]
 	fault = true
 
 
