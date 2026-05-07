@@ -60,6 +60,7 @@ func load_tag_groups_data() -> void:
 				"gateway": tag_groups_config.get_value(group_section, "gateway", "localhost"),
 				"path": tag_groups_config.get_value(group_section, "path", "1,0"),
 				"cpu": tag_groups_config.get_value(group_section, "cpu", "ControlLogix"),
+				"connections": tag_groups_config.get_value(group_section, "connections", "1"),
 				"saved": true
 			}
 			tag_groups_data.append(group_data)
@@ -152,6 +153,7 @@ func save_tag_groups_data() -> void:
 		tag_groups_config.set_value(group_section, "gateway", group_data.gateway)
 		tag_groups_config.set_value(group_section, "path", group_data.path)
 		tag_groups_config.set_value(group_section, "cpu", group_data.cpu)
+		tag_groups_config.set_value(group_section, "connections", group_data.get("connections", "1"))
 
 	tag_groups_config.save(TAG_GROUPS_FILE)
 
@@ -174,7 +176,8 @@ func _on_AddTagGroup_pressed() -> void:
 	var _name := "TagGroup" + str(len(tag_groups_data))
 	tag_groups_data.push_back({
 		"name": _name, "polling_rate": "100", "protocol": "0",
-		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix"
+		"gateway": "localhost", "path": "1,0", "cpu": "ControlLogix",
+		"connections": "1"
 	})
 	load_tag_groups_ui()
 	mark_changes_present()
@@ -196,7 +199,8 @@ func register_tag_groups() -> void:
 		var g: String = tag_group_data.gateway
 		var p: String = tag_group_data.path
 		var c: String = tag_group_data.cpu
-		OIPComms.register_tag_group(n, int(pr), pt, g, p, c)
+		var conns: int = int(tag_group_data.get("connections", "1"))
+		OIPComms.register_tag_group(n, int(pr), pt, g, p, c, conns)
 	OIPComms.tag_groups_registered.emit()
 
 func _on_EnableComms_toggled(toggled_on: bool) -> void:

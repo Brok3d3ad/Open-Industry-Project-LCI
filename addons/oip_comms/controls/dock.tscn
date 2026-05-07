@@ -24,10 +24,18 @@ layout_mode = 2
 [node name="EnableComms" type="CheckBox" parent="Layout/Toolbar"]
 layout_mode = 2
 text = "Enable Comms"
+tooltip_text = "Master switch for OIPComms.
+
+When off, no reads or writes occur even if the simulation is running.
+
+State is persisted to res://oip_data/comms_settings.cfg."
 
 [node name="EnableLogging" type="CheckBox" parent="Layout/Toolbar"]
 layout_mode = 2
 text = "Enable Logging"
+tooltip_text = "When on, OIPComms prints additional diagnostic messages to the output.
+
+Errors are always logged regardless of this setting."
 
 [node name="Spacer" type="Control" parent="Layout/Toolbar"]
 layout_mode = 2
@@ -36,11 +44,17 @@ size_flags_horizontal = 3
 [node name="AddTagGroup" type="Button" parent="Layout/Toolbar"]
 layout_mode = 2
 text = "Add Tag Group"
+tooltip_text = "Add a new tag group.
+
+Each group represents one connection to a device (PLC, OPC UA server, robot)."
 
 [node name="Save Changes" type="Button" parent="Layout/Toolbar"]
 layout_mode = 2
 disabled = true
 text = "Save Changes"
+tooltip_text = "Persist the current dock state to res://oip_data/tag_groups.cfg.
+
+Re-registers all tag groups with OIPComms."
 
 [node name="HSeparator" type="HSeparator" parent="Layout"]
 layout_mode = 2

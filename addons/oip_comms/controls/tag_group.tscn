@@ -12,7 +12,11 @@ layout_mode = 2
 [node name="NameLabel" type="Label" parent="Row1"]
 layout_mode = 2
 custom_minimum_size = Vector2(40, 0)
+mouse_filter = 1
 text = "Name"
+tooltip_text = "Unique identifier for this tag group.
+
+Scripts (Conveyor, Sensor, etc.) reference this name when reading or writing tags."
 
 [node name="Name" type="LineEdit" parent="Row1"]
 layout_mode = 2
@@ -23,7 +27,17 @@ select_all_on_focus = true
 [node name="ProtocolLabel" type="Label" parent="Row1"]
 layout_mode = 2
 custom_minimum_size = Vector2(55, 0)
+mouse_filter = 1
 text = "Protocol"
+tooltip_text = "Communication protocol for this tag group.
+The fields below adapt to the selected protocol.
+
+ab_eip: Allen-Bradley EtherNet/IP
+modbus_tcp: Modbus TCP
+opc_ua: OPC UA server
+siemens put/get: Siemens S7
+ads: Beckhoff TwinCAT
+rtde: Universal Robots"
 
 [node name="Protocol" type="OptionButton" parent="Row1"]
 layout_mode = 2
@@ -44,7 +58,13 @@ popup/item_4/id = 4
 [node name="PollingRateLabel" type="Label" parent="Row1"]
 layout_mode = 2
 custom_minimum_size = Vector2(75, 0)
+mouse_filter = 1
 text = "Polling (ms)"
+tooltip_text = "How often (in milliseconds) tags in this group are read from the device.
+
+Lower = fresher data but more network and PLC comm-task load.
+
+Writes happen immediately and don't wait for the polling interval."
 
 [node name="PollingRate" type="SpinBox" parent="Row1"]
 layout_mode = 2
@@ -53,9 +73,37 @@ max_value = 1000000.0
 value = 100.0
 rounded = true
 
+[node name="ConnectionsLabel" type="Label" parent="Row1"]
+layout_mode = 2
+custom_minimum_size = Vector2(50, 0)
+mouse_filter = 1
+text = "Conn."
+tooltip_text = "Number of parallel libplctag sessions for this group.
+
+Tags are sharded across sessions by a stable hash of the tag name, so a tag stays pinned to the same session across runs.
+
+Only meaningful for ab_eip and modbus_tcp.
+
+1 = original behavior
+4 = good default for a single ControlLogix simulator
+~16+ = returns drop off as Godot/network RTT dominate
+
+Higher counts shouldn't be used against a production PLC."
+
+[node name="Connections" type="SpinBox" parent="Row1"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+min_value = 1.0
+max_value = 32.0
+value = 1.0
+rounded = true
+
 [node name="Delete" type="Button" parent="Row1"]
 layout_mode = 2
 text = "Delete"
+tooltip_text = "Remove this tag group.
+
+Tags assigned to this group will no longer be readable or writable until the group is recreated."
 
 [node name="Row2" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -63,6 +111,7 @@ layout_mode = 2
 [node name="GatewayLabel" type="Label" parent="Row2"]
 layout_mode = 2
 custom_minimum_size = Vector2(55, 0)
+mouse_filter = 1
 text = "Gateway"
 
 [node name="Gateway" type="LineEdit" parent="Row2"]
@@ -74,6 +123,7 @@ select_all_on_focus = true
 [node name="PathLabel" type="Label" parent="Row2"]
 layout_mode = 2
 custom_minimum_size = Vector2(55, 0)
+mouse_filter = 1
 text = "Path"
 
 [node name="Path" type="LineEdit" parent="Row2"]
@@ -88,6 +138,7 @@ layout_mode = 2
 [node name="CPULabel" type="Label" parent="Row2/CPURow"]
 layout_mode = 2
 custom_minimum_size = Vector2(30, 0)
+mouse_filter = 1
 text = "CPU"
 
 [node name="CPU" type="OptionButton" parent="Row2/CPURow"]
@@ -117,6 +168,7 @@ layout_mode = 2
 [node name="PortLabel" type="Label" parent="Row2/PortRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(30, 0)
+mouse_filter = 1
 text = "Port"
 
 [node name="Port" type="LineEdit" parent="Row2/PortRow"]
@@ -128,6 +180,9 @@ select_all_on_focus = true
 layout_mode = 2
 text = "Browse"
 visible = false
+tooltip_text = "Open the OPC UA Browser dock to inspect this server's address space and pick node IDs.
+
+Requires the OPC UA Browser plugin to be enabled."
 
 [node name="HSeparator" type="HSeparator" parent="."]
 layout_mode = 2
@@ -135,6 +190,7 @@ layout_mode = 2
 [connection signal="text_changed" from="Row1/Name" to="." method="_on_text_changed"]
 [connection signal="item_selected" from="Row1/Protocol" to="." method="_on_item_selected"]
 [connection signal="value_changed" from="Row1/PollingRate" to="." method="_on_value_changed"]
+[connection signal="value_changed" from="Row1/Connections" to="." method="_on_value_changed"]
 [connection signal="pressed" from="Row1/Delete" to="." method="_on_Delete_pressed"]
 [connection signal="text_changed" from="Row2/Gateway" to="." method="_on_Gateway_text_changed"]
 [connection signal="text_changed" from="Row2/Path" to="." method="_on_Path_text_changed"]
