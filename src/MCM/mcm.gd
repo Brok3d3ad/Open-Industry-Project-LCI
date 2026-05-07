@@ -82,6 +82,20 @@ const _LABEL_HOVER_OFFSET: Vector3 = Vector3(0.0, 0.08, 0.0)
 			_fire_relay_tag.write_bit(not value)
 		fire_relay = value
 
+## True while the latched E-Stop mushroom is engaged. Read-only — driven
+## by the cap's press state stored in `_targets`. Exposed so external
+## safety chains (APF, etc.) can poll the MCM as a trip source.
+var estop_engaged: bool:
+	get:
+		return _estop_pressed_now()
+
+## Aggregate safety-trip signal. True when ANY of the configured panel
+## inputs that should drop drive STO is active: fire alarm (`fire_relay`)
+## or the latched E-Stop mushroom. APF's `mcm_paths` polls this.
+var safety_tripped: bool:
+	get:
+		return fire_relay or estop_engaged
+
 @export_category("Communications")
 
 ## Enable communication with external PLC/control systems.

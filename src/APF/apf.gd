@@ -236,6 +236,16 @@ func _handle_connection_fault_on_demand() -> void:
 		epc_paths = value
 		_resolve_epcs()
 
+## Optional MCMs (Motor Control Modules) coupled to this drive. While
+## **any** assigned MCM reports `safety_tripped == true` (fire-relay
+## alarm active or E-Stop mushroom latched), `safe_torque_enabled` reads
+## `false` and the drive can't run — the panel's safety chain de-energises
+## the drive just like a tripped EPC. Leave the list empty to disable.
+@export var mcm_paths: Array[NodePath]:
+	set(value):
+		mcm_paths = value
+		_resolve_mcms()
+
 ## Optional auxiliary disconnects coupled to this drive. While **any**
 ## assigned aux is tripped, `connection_faulted` is forced HIGH (treated
 ## as a comms loss). On the rising edge of any aux trip a fresh random
@@ -390,6 +400,7 @@ var _trip_elapsed: float = 0.0
 var _connection_elapsed: float = 0.0
 var _conveyor: Node = null
 var _epcs: Array[Node] = []
+var _mcms: Array[Node] = []
 var _aux_disconnects: Array[Node] = []
 var _aux_tripped_prev: bool = false
 var _belt_speed: float = 0.0
@@ -461,6 +472,7 @@ func _ready() -> void:
 		_interaction_prompt.visible = false
 	_resolve_conveyor()
 	_resolve_epcs()
+	_resolve_mcms()
 	_resolve_aux_disconnects()
 	_update_fpm_label()
 	_apply_handle_position()
@@ -569,10 +581,36 @@ func _any_epc_tripped() -> bool:
 	return false
 
 
-## Poll the assigned EPC chain and update `safe_torque_enabled` if its
-## state has changed. Called per physics tick.
+## Resolve every NodePath in `mcm_paths` to a live node. Mirrors
+## `_resolve_epcs`.
+func _resolve_mcms() -> void:
+	_mcms.clear()
+	if not is_inside_tree():
+		return
+	for path: NodePath in mcm_paths:
+		if path.is_empty():
+			continue
+		var node: Node = get_node_or_null(path)
+		if node:
+			_mcms.append(node)
+
+
+## Returns true if any assigned MCM reports `safety_tripped == true`
+## (fire-relay alarm or E-Stop mushroom engaged). Empty list → false.
+func _any_mcm_safety_tripped() -> bool:
+	for mcm: Node in _mcms:
+		if not is_instance_valid(mcm):
+			continue
+		if "safety_tripped" in mcm and bool(mcm.get("safety_tripped")):
+			return true
+	return false
+
+
+## Poll the assigned EPC + MCM safety chains and update
+## `safe_torque_enabled` if its state has changed. Called per (throttled)
+## physics tick.
 func _poll_safe_torque() -> void:
-	var new_sto: bool = not _any_epc_tripped()
+	var new_sto: bool = not (_any_epc_tripped() or _any_mcm_safety_tripped())
 	if new_sto != safe_torque_enabled:
 		safe_torque_enabled = new_sto
 
