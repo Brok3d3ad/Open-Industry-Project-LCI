@@ -50,6 +50,11 @@ enum ConvTexture {
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var _mesh: MeshInstance3D = get_node("MeshInstance3D")
+## Last `speed` actually pushed into `_sb.constant_linear_velocity`. NAN
+## on first tick so the initial write goes through. Avoids recomputing
+## the basis-rotated velocity vector + writing it every physics tick when
+## the conveyor is running at a constant speed.
+var _last_pushed_speed: float = NAN
 ## When true, the parent assembly handles frame and belt end generation.
 var frame_managed_externally: bool = false:
 	set(value):
@@ -191,14 +196,20 @@ func _refresh_frame_management() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if EditorInterface.is_simulation_running():
+	if not EditorInterface.is_simulation_running():
+		return
+	# Only recompute and re-push the kinematic surface velocity when speed
+	# actually changes. Boxes already stay in motion from their friction
+	# contact with the static body — the property doesn't need to be
+	# rewritten every tick.
+	if not is_equal_approx(speed, _last_pushed_speed):
 		var local_left := _sb.global_transform.basis.x.normalized()
-		var velocity := local_left * speed
-		_sb.constant_linear_velocity = velocity
-		if not EditorInterface.is_simulation_paused():
-			_belt_position = fmod(_belt_position + speed * delta, 1.0)
-		if speed != 0:
-			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
+		_sb.constant_linear_velocity = local_left * speed
+		_last_pushed_speed = speed
+	if not EditorInterface.is_simulation_paused():
+		_belt_position = fmod(_belt_position + speed * delta, 1.0)
+	if speed != 0:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 
 
 func _exit_tree() -> void:

@@ -54,6 +54,11 @@ var _last_distance: float = -1.0
 var _last_beam_color: Color = Color.TRANSPARENT
 var _last_transform: Transform3D
 var _beam_needs_update: bool = true
+## Counter used to throttle the per-tick raycast to ~30 Hz (every 4th
+## physics tick at the project's 120 Hz rate). 33 ms detection latency
+## is well within typical PLC scan rates and the cached `distance` /
+## `_last_*` state stays valid between samples.
+var _scan_tick: int = 0
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
@@ -107,6 +112,9 @@ func _exit_tree() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	_scan_tick += 1
+	if _scan_tick % 4 != 0:
+		return
 	var start_pos := global_position
 	var end_pos := start_pos + global_transform.basis.z * max_range
 

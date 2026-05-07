@@ -126,6 +126,10 @@ var _shadow_plate: MeshInstance3D
 var _belt_position: float = 0.0
 var _angular_speed: float = 0.0
 var _linear_speed: float = 0.0
+## Last `_angular_speed` actually pushed into `_sb.constant_angular_velocity`.
+## NAN forces the first write through. Saves the per-tick basis lookup +
+## velocity vector recomputation while spinning at a constant rate.
+var _last_pushed_angular_speed: float = NAN
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
@@ -646,14 +650,18 @@ func _recalculate_speeds() -> void:
 	_update_belt_ends()
 
 func _physics_process(delta: float) -> void:
-	if EditorInterface.is_simulation_running():
+	if not EditorInterface.is_simulation_running():
+		return
+	# Only re-push the angular velocity when it actually changes — same
+	# rationale as BeltConveyor's linear case.
+	if not is_equal_approx(_angular_speed, _last_pushed_angular_speed):
 		var local_up := _sb.global_transform.basis.y.normalized()
-		var velocity := -local_up * _angular_speed
-		_sb.constant_angular_velocity = velocity
-		if not EditorInterface.is_simulation_paused():
-			_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
-		if _linear_speed != 0:
-			(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
+		_sb.constant_angular_velocity = -local_up * _angular_speed
+		_last_pushed_angular_speed = _angular_speed
+	if not EditorInterface.is_simulation_paused():
+		_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
+	if _linear_speed != 0:
+		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)
 
 
 func _update_belt_material_scale() -> void:

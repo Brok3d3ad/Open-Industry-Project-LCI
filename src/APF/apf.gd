@@ -395,6 +395,15 @@ var _aux_tripped_prev: bool = false
 var _belt_speed: float = 0.0
 var _ramp_rate: float = 0.0
 var _last_ramp_target: float = 0.0
+## Last value pushed to `_conveyor.speed`. NAN forces the first write
+## through. Used to skip per-tick setter calls when nothing has changed.
+var _last_written_belt_speed: float = NAN
+## Counter used to throttle pilot-aim raycasts and EPC/aux iteration to
+## ~30 Hz. Physics ticks at 120 Hz; we only need 30 Hz precision for
+## interaction-prompt updates and rarely-changing input states. The cheap
+## per-tick work (key polling, belt-speed ramp, conveyor write) is left
+## at the full rate.
+var _aim_tick: int = 0
 var _pilot_aiming: bool = false
 var _keypad_reverse: bool = false
 var _keypad_jogging: bool = false
@@ -479,18 +488,33 @@ func _physics_process(delta: float) -> void:
 		return
 	# Pilot-aim ray cast must run here — physics runs on a separate thread
 	# (`3d/run_on_separate_thread=true` in project.godot) and the space
-	# state is null from `_process`.
-	_update_pilot_aim()
+	# state is null from `_process`. Throttle to every 4th tick (~30 Hz);
+	# the raycast and EPC/aux iteration dominate this part's CPU cost and
+	# don't need 120 Hz fidelity. Keypad polling stays at full rate.
+	if _aim_tick % 4 == 0:
+		_update_pilot_aim()
+		_poll_safe_torque()
+		_poll_aux_state()
+	_aim_tick += 1
 	if _pilot_aiming:
 		_poll_keypad_inputs()
-	_poll_safe_torque()
-	_poll_aux_state()
+	# Skip belt math entirely when the drive is stably stopped. Most APFs
+	# in a large scene sit idle waiting for a PLC start command — bailing
+	# here saves the per-tick `_compute_target_belt_speed` + setter chain
+	# on dozens of instances.
+	if not running and is_zero_approx(_belt_speed):
+		return
 	var target: float = _compute_target_belt_speed()
 	if not is_equal_approx(_belt_speed, target):
 		_advance_belt_speed(target, delta)
 		_update_fpm_label()
-	if _conveyor and "speed" in _conveyor:
-		_conveyor.set("speed", _belt_speed)
+	# Only push to the conveyor when the value actually changed; the
+	# conveyor's own `speed` setter early-outs on equality but reaching it
+	# still costs a `set()` invocation × N APFs × 120 Hz.
+	if _conveyor and not is_equal_approx(_belt_speed, _last_written_belt_speed):
+		if "speed" in _conveyor:
+			_conveyor.set("speed", _belt_speed)
+		_last_written_belt_speed = _belt_speed
 
 
 ## E-click in pilot mode (and editor C-shortcut) toggles disconnect.

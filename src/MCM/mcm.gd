@@ -133,6 +133,10 @@ var _anim_end: Transform3D
 var _pilot_aiming: bool = false
 var _aimed_target_idx: int = -1  # index into `_targets`; -1 = none
 var _prev_e: bool = false
+## Counter used to throttle the pilot-aim distance scan to ~30 Hz. The
+## E-key edge detection in `_poll_input` stays at the full physics rate
+## so a press is never missed; only the aim *update* lags by up to 33 ms.
+var _aim_tick: int = 0
 # Each entry:
 #   kind: "button" | "door"
 #   pick_nodes: Array[Node3D]    — used for aim distance + prompt position
@@ -474,8 +478,12 @@ func _estop_pressed_now() -> bool:
 func _physics_process(_delta: float) -> void:
 	# Pilot-aim ray cast must run here — physics runs on a separate thread
 	# (`3d/run_on_separate_thread=true` in project.godot) and the space
-	# state is null from `_process`.
-	_update_pilot_aim()
+	# state is null from `_process`. Throttle the aim update to every 4th
+	# tick (~30 Hz); E-key edge detection still runs every tick on the
+	# last-known aim state so presses aren't dropped.
+	if _aim_tick % 4 == 0:
+		_update_pilot_aim()
+	_aim_tick += 1
 	if _pilot_aiming and _aimed_target_idx >= 0:
 		_poll_input()
 
