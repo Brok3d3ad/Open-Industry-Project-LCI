@@ -14,8 +14,32 @@ const _PB_GLOW_ENERGY: float = 4.0
 const _PB_GLOW_FALLBACK_COLOR := Color(1.0, 0.85, 0.2, 1.0)
 
 ## Names of `_Btn`-suffixed nodes that are actually indicator lamps, not
-## pressable controls — skipped during target discovery.
-const _NON_INTERACTIVE_BTN_NAMES: Array[String] = ["PON_Btn", "ES_Btn"]
+## pressable controls — skipped during target discovery. Includes the
+## panel status lamps wired up via `_STATUS_LAMPS`.
+const _NON_INTERACTIVE_BTN_NAMES: Array[String] = [
+	"PON_Btn", "ES_Btn",
+	"UPS_PL_0_Btn", "UPS_PL_1_Btn", "UPS_PL_2_Btn",
+	"NAT_1_Btn",
+	"FireRelay_PL_FIRE_Btn", "FireRelay_PL_ON_Btn",
+]
+
+## Status-input lamps. One row per indicator on the panel — the lamp
+## node's name (the `*_Btn` mesh) and the @export bool that drives it.
+## Labels are baked into the scene file (`parts/MCM.tscn`) as `StatusLabel`
+## Label3D children of each lamp, matching APF's `StatusLabel` pattern.
+const _STATUS_LAMPS: Array[Dictionary] = [
+	{"lamp": "UPS_PL_0_Btn",          "prop": "ups_fault"},
+	{"lamp": "UPS_PL_1_Btn",          "prop": "on_ups"},
+	{"lamp": "UPS_PL_2_Btn",          "prop": "ups_low"},
+	{"lamp": "NAT_1_Btn",             "prop": "nat_switch_fault"},
+	{"lamp": "FireRelay_PL_FIRE_Btn", "prop": "fire_relay"},
+	{"lamp": "FireRelay_PL_ON_Btn",   "prop": "fire_relay"},
+]
+
+## Solid colors for the OK / BAD lamp states.
+const _STATUS_LAMP_OK_COLOR := Color(0.0, 1.0, 0.15, 1.0)
+const _STATUS_LAMP_BAD_COLOR := Color(1.0, 0.05, 0.05, 1.0)
+const _STATUS_LAMP_ENERGY: float = 3.0
 
 ## World-space offset applied to the interaction prompt's position so the
 ## label floats above the aimed target instead of overlapping it.
@@ -61,26 +85,31 @@ const _LABEL_HOVER_OFFSET: Vector3 = Vector3(0.0, 0.08, 0.0)
 		if _ups_fault_tag.is_ready() and value != ups_fault:
 			_ups_fault_tag.write_bit(not value)
 		ups_fault = value
+		_drive_status_lamp("ups_fault", value)
 @export var on_ups: bool = false:
 	set(value):
 		if _on_ups_tag.is_ready() and value != on_ups:
 			_on_ups_tag.write_bit(value)
 		on_ups = value
+		_drive_status_lamp("on_ups", value)
 @export var ups_low: bool = false:
 	set(value):
 		if _ups_low_tag.is_ready() and value != ups_low:
 			_ups_low_tag.write_bit(value)
 		ups_low = value
+		_drive_status_lamp("ups_low", value)
 @export var nat_switch_fault: bool = false:
 	set(value):
 		if _nat_switch_fault_tag.is_ready() and value != nat_switch_fault:
 			_nat_switch_fault_tag.write_bit(value)
 		nat_switch_fault = value
+		_drive_status_lamp("nat_switch_fault", value)
 @export var fire_relay: bool = false:
 	set(value):
 		if _fire_relay_tag.is_ready() and value != fire_relay:
 			_fire_relay_tag.write_bit(not value)
 		fire_relay = value
+		_drive_status_lamp("fire_relay", value)
 
 ## True while the latched E-Stop mushroom is engaged. Read-only — driven
 ## by the cap's press state stored in `_targets`. Exposed so external
@@ -193,6 +222,14 @@ var _estop_actuated_lt_tag := OIPCommsTag.new()
 var _es_indicator_meshes: Array[MeshInstance3D] = []
 var _es_indicator_unique: bool = false
 
+## Per-status-lamp render state. Keyed by lamp node name (matches the
+## `lamp` field of `_STATUS_LAMPS`). Each entry:
+##   meshes: Array[MeshInstance3D]  — the glow surfaces under the lamp
+##   unique: bool                   — whether materials have been duplicated
+##   active: bool                   — current driven state (with inversion already applied)
+##   tween:  Tween                  — running pulse tween (or null)
+var _status_lamp_states: Dictionary = {}
+
 @onready var _door_pivot: Node3D = $MCM/Door_Pivot
 @onready var _interaction_prompt: Label3D = get_node_or_null("InteractionPrompt") as Label3D
 
@@ -216,6 +253,15 @@ func _ready() -> void:
 	_discover_targets()
 	_wire_button_tags()
 	_resolve_es_indicator()
+	_resolve_status_lamps()
+	# Sync each lamp to its current @export bool. Catches scene-load
+	# values that the setters may have applied before `_status_lamp_states`
+	# was populated.
+	_drive_status_lamp("ups_fault", ups_fault)
+	_drive_status_lamp("on_ups", on_ups)
+	_drive_status_lamp("ups_low", ups_low)
+	_drive_status_lamp("nat_switch_fault", nat_switch_fault)
+	_drive_status_lamp("fire_relay", fire_relay)
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -346,6 +392,76 @@ func _wire_button_tags() -> void:
 		elif pb_tag_by_name.has(node_name):
 			entry["pb_tag"] = pb_tag_by_name[node_name]
 			entry["nc"] = node_name == "STPB_Btn"
+
+
+## Walk the MCM subtree, find each `_STATUS_LAMPS` entry's lamp node
+## (status lamps live under `Subpanel_Pivot`, NOT `Door_Pivot`), and
+## record its glow meshes. Lamps that aren't found in the GLB are
+## silently skipped so missing nodes don't break the rest of the panel.
+func _resolve_status_lamps() -> void:
+	_status_lamp_states.clear()
+	for spec: Dictionary in _STATUS_LAMPS:
+		var lamp_name: String = String(spec["lamp"])
+		var lamp_node: Node3D = find_child(lamp_name, true, false) as Node3D
+		if lamp_node == null:
+			continue
+		_status_lamp_states[lamp_name] = {
+			"meshes": _collect_glow_meshes(lamp_node),
+			"unique": false,
+			"active": false,
+			"initialized": false,
+		}
+
+
+## Update the lamp(s) wired to `prop_name`. Each lamp shows solid GREEN
+## while the property is FALSE (OK state) and solid RED while TRUE (BAD).
+## Iterates `_STATUS_LAMPS` so one property can drive multiple lamps.
+func _drive_status_lamp(prop_name: String, value: bool) -> void:
+	if _status_lamp_states.is_empty():
+		# Not yet discovered (setter fired during scene load before _ready).
+		return
+	for spec: Dictionary in _STATUS_LAMPS:
+		if String(spec["prop"]) != prop_name:
+			continue
+		var lamp_name: String = String(spec["lamp"])
+		if not _status_lamp_states.has(lamp_name):
+			continue
+		_set_status_lamp_color(lamp_name, value)
+
+
+## Apply solid GREEN (signal=false, OK) or solid RED (signal=true, BAD)
+## emission to a single lamp. Skips when nothing changed AND the lamp has
+## already been initialised (the very first call still pushes the chosen
+## color to override whatever the GLB material shipped with).
+func _set_status_lamp_color(lamp_name: String, bad: bool) -> void:
+	var state: Dictionary = _status_lamp_states[lamp_name]
+	if bool(state["active"]) == bad and bool(state["initialized"]):
+		return
+	state["active"] = bad
+	state["initialized"] = true
+	var color: Color = _STATUS_LAMP_BAD_COLOR if bad else _STATUS_LAMP_OK_COLOR
+	_apply_status_lamp_emission(state, color, _STATUS_LAMP_ENERGY)
+
+
+func _apply_status_lamp_emission(state: Dictionary, color: Color, energy: float) -> void:
+	var meshes: Array = state["meshes"]
+	if meshes.is_empty():
+		return
+	if not bool(state["unique"]):
+		for m: Variant in meshes:
+			_make_material_unique(m as MeshInstance3D)
+		state["unique"] = true
+	for m: Variant in meshes:
+		var mat := (m as MeshInstance3D).get_surface_override_material(0) as StandardMaterial3D
+		if not mat:
+			continue
+		# Override albedo too so the GLB's per-lamp tint (some caps ship
+		# green/amber/red) doesn't bleed through and produce mismatched
+		# colors across lamps when they're driven to the same state.
+		mat.albedo_color = color
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = energy
 
 
 func _resolve_es_indicator() -> void:

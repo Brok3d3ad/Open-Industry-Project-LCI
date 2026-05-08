@@ -309,20 +309,137 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_o8h2w")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n7icw"]
+resource_local_to_scene = true
+resource_name = "Lens_Red"
+cull_mode = 2
+albedo_color = Color(0.9546871, 0.3491902, 0.3491902, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dqnmh"]
+resource_local_to_scene = true
+resource_name = "Lens_Green"
+cull_mode = 2
+albedo_color = Color(0.24780053, 0.76737565, 0.3491902, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kbd4i"]
+resource_local_to_scene = true
+resource_name = "Lens_Green.001"
+cull_mode = 2
+albedo_color = Color(0.24780053, 0.76737565, 0.3491902, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rdmhv"]
+resource_local_to_scene = true
+resource_name = "Lens_Red"
+cull_mode = 2
+albedo_color = Color(0.9546871, 0.3491902, 0.3491902, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1vruy"]
+resource_local_to_scene = true
+resource_name = "Lens_Amber"
+cull_mode = 2
+albedo_color = Color(0.9309246, 0.7014107, 0.24780053, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dy4fc"]
+resource_local_to_scene = true
+resource_name = "Lens_Green"
+cull_mode = 2
+albedo_color = Color(0.24780053, 0.76737565, 0.3491902, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0, 1, 0.15, 1)
+emission_energy_multiplier = 3.0
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_mcm_door"]
 size = Vector3(0.5, 0.6, 0.4)
 
 [node name="Mcm" type="Node3D" unique_id=1541186531]
 transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 0)
 script = ExtResource("2_mcm_script")
+open = true
+tag_group_name = "TagGroup0"
 
 [node name="MCM" parent="." unique_id=624119483 instance=ExtResource("1_rly3b")]
 
-[node name="Door_Pivot" parent="MCM" index="8" unique_id=383927021]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.001, 0, -0.003)
+[node name="Door_Pivot" parent="MCM" index="8" unique_id=1295116006]
+transform = Transform3D(-0.50000006, 0, -0.8660254, 0, 1, 0, 0.8660254, 0, -0.50000006, -0.457, -0.002, 0.272)
 
-[node name="CFR_Nut" parent="MCM/Door_Pivot" index="6" unique_id=783238825]
+[node name="CFR_Nut" parent="MCM/Door_Pivot" index="7" unique_id=1220312299]
 mesh = SubResource("ArrayMesh_n7icw")
+
+[node name="FireRelay_PL_FIRE_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="9" unique_id=2898607]
+surface_material_override/0 = SubResource("StandardMaterial3D_n7icw")
+
+[node name="FireRelay_PL_FIRE_Lbl" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="10" unique_id=302340633]
+visible = false
+
+[node name="FireRelay_PL_ON_Bezel" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="12" unique_id=199313273]
+visible = false
+
+[node name="FireRelay_PL_ON_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="13" unique_id=170692280]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_dqnmh")
+
+[node name="FireRelay_PL_ON_Lbl" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="14" unique_id=55177427]
+visible = false
+
+[node name="FireRelay_PL_ON_Nut" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="15" unique_id=1186634492]
+visible = false
+
+[node name="NAT_1_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="21" unique_id=1837384029]
+surface_material_override/0 = SubResource("StandardMaterial3D_kbd4i")
+
+[node name="UPS_PL_0_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="85" unique_id=92279382]
+surface_material_override/0 = SubResource("StandardMaterial3D_rdmhv")
+
+[node name="UPS_PL_1_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="88" unique_id=1871937749]
+surface_material_override/0 = SubResource("StandardMaterial3D_1vruy")
+
+[node name="UPS_PL_2_Btn" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="91" unique_id=1914894328]
+surface_material_override/0 = SubResource("StandardMaterial3D_dy4fc")
+
+[node name="UPS_Fault" type="Label3D" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="93" unique_id=284087603]
+transform = Transform3D(0.9999998, 0, 0, 0, 0.9999998, 0, 0, 0, 0.9999998, -0.113722585, 0.31672657, 0.032331064)
+pixel_size = 0.0005
+double_sided = false
+modulate = Color(0, 0, 0, 1)
+outline_modulate = Color(1, 1, 1, 1)
+text = "Fault"
+
+[node name="UPS_Low" type="Label3D" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="94" unique_id=219778647]
+transform = Transform3D(0.9999998, 0, 0, 0, 0.9999998, 0, 0, 0, 0.9999998, -0.11372258, 0.2986952, 0.032331064)
+pixel_size = 0.0005
+double_sided = false
+modulate = Color(0, 0, 0, 1)
+outline_modulate = Color(1, 1, 1, 1)
+text = "Low"
+
+[node name="UPS_On" type="Label3D" parent="MCM/Subpanel_Pivot" parent_id_path=PackedInt32Array(624119483, 225197187) index="95" unique_id=1377727128]
+transform = Transform3D(0.9999998, 0, 0, 0, 0.9999998, 0, 0, 0, 0.9999998, -0.11372258, 0.27941412, 0.032331064)
+pixel_size = 0.0005
+double_sided = false
+modulate = Color(0, 0, 0, 1)
+outline_modulate = Color(1, 1, 1, 1)
+text = " ON"
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=712893415]
 collision_layer = 3
@@ -332,7 +449,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.1)
 shape = SubResource("BoxShape3D_mcm_door")
 
 [node name="InteractionPrompt" type="Label3D" parent="." unique_id=1497823654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0.12)
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 1, 0.59999996)
+top_level = true
 visible = false
 pixel_size = 0.0008
 billboard = 1
