@@ -110,9 +110,9 @@ const PILOT_AIM_RANGE: float = 3.0
 ## Either way, no fault (`fault`, `connection_faulted`,
 ## `not disconnect_closed`) is required.
 ##
-## Velocity tracking: in remote mode `velocity` mirrors
-## `commanded_velocity` while running; in keypad mode it's
-## `KEYPAD_JOG_VELOCITY` while jogging, 0 otherwise.
+## `velocity` is *not* snapped here — it follows `_belt_speed` via
+## `_update_reported_velocity()` so it ramps gradually on running edges
+## instead of jumping to/from `commanded_velocity`.
 @export var running: bool = false:
 	set(value):
 		var operational: bool
@@ -127,18 +127,7 @@ const PILOT_AIM_RANGE: float = 3.0
 		if _running_tag.is_ready() and gated != running:
 			_running_tag.write_bit(gated)
 		running = gated
-		velocity = _compute_reported_velocity() if running else 0.0
 		_update_status_visuals()
-
-
-## Reported `velocity` for the running PLC tag. In remote mode it mirrors
-## the PLC's command; in keypad mode jog reports `KEYPAD_JOG_VELOCITY`.
-func _compute_reported_velocity() -> float:
-	if not keypad_hand_mode:
-		return commanded_velocity
-	if _keypad_jogging:
-		return KEYPAD_JOG_VELOCITY
-	return 0.0
 
 ## Safe Torque Off feedback (BOOL). High = torque enabled (safe to run).
 ## Driven by the assigned `epc_paths`: while ANY EPC is tripped this
@@ -168,8 +157,10 @@ func _compute_reported_velocity() -> float:
 			_output_voltage_tag.write_float32(value)
 		output_voltage = value
 
-## Reported motor velocity (REAL). Driven by the `running` setter:
-## mirrors `commanded_velocity` while running, snaps to 0 when stopped.
+## Reported motor velocity (REAL). Driven by `_update_reported_velocity()`
+## from the ramping `_belt_speed` so it tracks actual belt motion —
+## ramps up on start, ramps down on stop, mirrors any `commanded_velocity`
+## change at the configured `dynamic_accel_time` / `dynamic_decel_time`.
 ## Also recomputes `output_current = velocity * 2` (per spec).
 @export var velocity: float = 0.0:
 	set(value):
@@ -525,6 +516,7 @@ func _physics_process(delta: float) -> void:
 	if not is_equal_approx(_belt_speed, target):
 		_advance_belt_speed(target, delta)
 		_update_fpm_label()
+		_update_reported_velocity()
 	# Only push to the conveyor when the value actually changed; the
 	# conveyor's own `speed` setter early-outs on equality but reaching it
 	# still costs a `set()` invocation × N APFs × 120 Hz.
@@ -780,6 +772,19 @@ func _update_fpm_label() -> void:
 		return
 	var fpm: int = int(round(abs(_belt_speed) / FPM_TO_MS))
 	_fpm_label.text = "FPM %d" % fpm
+
+
+## Derive `velocity` from the ramping `_belt_speed` so the PLC tag tracks
+## the actual belt motion. The mapping inverts `_compute_target_belt_speed`:
+## belt_speed (m/s) → FPM → fraction of `design_fpm` × `COMMANDED_VELOCITY_FULL_SCALE`.
+## With `dynamic_accel_time` / `dynamic_decel_time` driving the belt ramp,
+## velocity ramps with it on every running edge and every commanded change.
+func _update_reported_velocity() -> void:
+	if design_fpm <= 0:
+		velocity = 0.0
+		return
+	var belt_fpm: float = abs(_belt_speed) / FPM_TO_MS
+	velocity = (belt_fpm / float(design_fpm)) * COMMANDED_VELOCITY_FULL_SCALE
 
 
 ## Cast a ray forward from the active camera (the pilot's first-person
