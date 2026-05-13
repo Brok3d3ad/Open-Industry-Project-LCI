@@ -509,8 +509,16 @@ func _physics_process(delta: float) -> void:
 	# Skip belt math entirely when the drive is stably stopped. Most APFs
 	# in a large scene sit idle waiting for a PLC start command — bailing
 	# here saves the per-tick `_compute_target_belt_speed` + setter chain
-	# on dozens of instances.
+	# on dozens of instances. One-shot sync on entry so the conveyor's
+	# scene-default `speed` (e.g. 2.0 in BeltConveyorAssembly.tscn) and the
+	# reported velocity / output_current get pushed to 0 the first time we
+	# land here — without this they sit at their inspector defaults.
 	if not running and is_zero_approx(_belt_speed):
+		if not is_equal_approx(_belt_speed, _last_written_belt_speed):
+			_update_reported_velocity()
+			if _conveyor and "speed" in _conveyor:
+				_conveyor.set("speed", _belt_speed)
+			_last_written_belt_speed = _belt_speed
 		return
 	var target: float = _compute_target_belt_speed()
 	if not is_equal_approx(_belt_speed, target):
