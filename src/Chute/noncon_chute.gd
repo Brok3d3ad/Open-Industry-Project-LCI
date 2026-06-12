@@ -350,14 +350,14 @@ func _validate_property(property: Dictionary) -> void:
 func _comms_enter() -> void:
 	gate_close_tag_group_name = OIPCommsSetup.default_tag_group(gate_close_tag_group_name)
 	gate_state_tag_group_name = OIPCommsSetup.default_tag_group(gate_state_tag_group_name)
-	if not EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.connect(_on_simulation_started)
+	if not Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
 func _comms_exit() -> void:
-	if EditorInterface.simulation_started.is_connected(_on_simulation_started):
-		EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	if Simulation.started.is_connected(_on_simulation_started):
+		Simulation.started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
 
