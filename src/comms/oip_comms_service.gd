@@ -28,7 +28,10 @@ func bootstrap() -> void:
 	if not Simulation.stopped.is_connected(_on_simulation_ended):
 		Simulation.stopped.connect(_on_simulation_ended, CONNECT_DEFERRED)
 	if not OIPComms.comms_error.is_connected(_on_comms_error):
-		OIPComms.comms_error.connect(_on_comms_error)
+		# Deferred: comms_error fires on the OIPComms worker thread, but
+		# Simulation.stop() touches editor UI / the Simulation node, which are
+		# main-thread only. (Same reason `stopped` is deferred above.)
+		OIPComms.comms_error.connect(_on_comms_error, CONNECT_DEFERRED)
 
 
 func register_tag_groups() -> void:

@@ -1,0 +1,3020 @@
+[gd_scene format=3 uid="uid://dwa60k0jsn7x2"]
+
+[ext_resource type="PackedScene" uid="uid://6vu4cx2v1ltg" path="res://parts/CurvedBeltConveyor.tscn" id="1_ef28r"]
+[ext_resource type="PackedScene" uid="uid://dm55h6ap605bw" path="res://parts/BeltConveyor.tscn" id="3_38ygf"]
+[ext_resource type="Script" uid="uid://dfskhbqfkklts" path="res://src/Conveyor/belt_segment.gd" id="4_segscript"]
+[ext_resource type="PackedScene" uid="uid://c7e1r04ws0m1j" path="res://parts/BeltSpurConveyor.tscn" id="5_sfsdb"]
+[ext_resource type="Script" uid="uid://8r05hs7nkh55" path="res://src/SideGuards/side_guard_opening.gd" id="5_sgopening"]
+[ext_resource type="PackedScene" uid="uid://co2mqmdwpn57w" path="res://parts/BoxSpawner.tscn" id="9_622nf"]
+[ext_resource type="PackedScene" uid="uid://fjhp06hl5608" path="res://parts/APF.tscn" id="auto_apf"]
+[ext_resource type="PackedScene" uid="uid://cbo8b2w2eag35" path="res://parts/AUX_Disconnect.tscn" id="auto_aux_disconnect"]
+[ext_resource type="PackedScene" uid="uid://drle8i15nwr68" path="res://parts/StackLight.tscn" id="auto_beacon"]
+[ext_resource type="PackedScene" uid="uid://dyhvoundu2kqc" path="res://parts/Building.tscn" id="auto_building"]
+[ext_resource type="PackedScene" uid="uid://gddgyvex6gdj" path="res://parts/PushButton.tscn" id="auto_button"]
+[ext_resource type="Script" uid="uid://cqhnx4rdp45s5" path="res://src/RenderOptimization/cosmetic_mesh_optimizer.gd" id="auto_cosmetic_optimizer"]
+[ext_resource type="PackedScene" uid="uid://bl73u0rvt2orv" path="res://parts/Despawner.tscn" id="auto_despawner"]
+[ext_resource type="PackedScene" uid="uid://iqy45qctm431" path="res://parts/DPM.tscn" id="auto_dpm"]
+[ext_resource type="PackedScene" uid="uid://cvhnxgfwoorqq" path="res://parts/EPC.tscn" id="auto_epc"]
+[ext_resource type="PackedScene" uid="uid://b748m6m2vp247" path="res://parts/FIO.tscn" id="auto_fio"]
+[ext_resource type="PackedScene" uid="uid://v2naw0up7gt8" path="res://parts/HUB.tscn" id="auto_hub"]
+[ext_resource type="PackedScene" uid="uid://nsio1mg8ru3w" path="res://parts/LaserSensor.tscn" id="auto_laser_sensor"]
+[ext_resource type="PackedScene" uid="uid://cp1p3w64hw83j" path="res://parts/MCM.tscn" id="auto_mcm"]
+[ext_resource type="PackedScene" uid="uid://cxyblvdh7jpj1" path="res://parts/PDP.tscn" id="auto_pdp"]
+[ext_resource type="PackedScene" uid="uid://dg47c07xr4ksu" path="res://parts/RollerConveyor.tscn" id="auto_roller"]
+[ext_resource type="PackedScene" uid="uid://kdpe7o4ec1fa" path="res://parts/DiffuseSensor.tscn" id="auto_sensor"]
+[ext_resource type="Script" uid="uid://bl7o7avq4pi78" path="res://src/StackLight/stack_light_data.gd" id="auto_stack_light_data_script"]
+[ext_resource type="Script" uid="uid://buet0tp11gjdl" path="res://src/StackLight/stack_segment_data.gd" id="auto_stack_segment_data_script"]
+
+[sub_resource type="Resource" id="Resource_iuaa8"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 20.08
+metadata/_belt_conveyor_owner = 752379318311808
+
+[sub_resource type="Resource" id="Resource_s5y5q"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = 16.317077
+arc_front = 19.365077
+metadata/_curved_host = false
+metadata/_owner_id = 752379318311808
+
+[sub_resource type="Resource" id="Resource_2j6u8"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 20.6
+metadata/_belt_conveyor_owner = 752381952346608
+
+[sub_resource type="Resource" id="Resource_uvjib"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = 9.813077
+arc_front = 12.861077
+metadata/_curved_host = false
+metadata/_owner_id = 752381952346608
+
+[sub_resource type="Resource" id="Resource_mk562"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 20.56
+metadata/_belt_conveyor_owner = 752384586426941
+
+[sub_resource type="Resource" id="Resource_toksl"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = 17.045756
+arc_front = 20.093756
+metadata/_curved_host = false
+metadata/_owner_id = 752384586426941
+
+[sub_resource type="Resource" id="Resource_1f4un"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = 3.043077
+arc_front = 6.091077
+metadata/_curved_host = false
+metadata/_owner_id = 752384586426941
+
+[sub_resource type="Resource" id="Resource_f2gc0"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 3.92
+metadata/_belt_conveyor_owner = 752387673364133
+
+[sub_resource type="Resource" id="Resource_e506j"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 11.36
+metadata/_belt_conveyor_owner = 752392740096401
+
+[sub_resource type="Resource" id="Resource_svr2r"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752395323798403
+
+[sub_resource type="Resource" id="Resource_s0vo2"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752397907477272
+
+[sub_resource type="Resource" id="Resource_2tcwy"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752400491207544
+
+[sub_resource type="Resource" id="Resource_ynadj"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 2.84
+metadata/_belt_conveyor_owner = 752406128319643
+
+[sub_resource type="Resource" id="Resource_2dusb"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = -1.634411
+arc_front = 13.605589
+side = "right"
+metadata/_curved_host = false
+metadata/_owner_id = 752406128319643
+
+[sub_resource type="Resource" id="Resource_255au"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 11.36
+metadata/_belt_conveyor_owner = 752411295708104
+
+[sub_resource type="Resource" id="Resource_5h8do"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752413879380543
+
+[sub_resource type="Resource" id="Resource_l0ils"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752416463135445
+
+[sub_resource type="Resource" id="Resource_prpeb"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752419046773528
+
+[sub_resource type="Resource" id="Resource_0hmjd"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 2.84
+metadata/_belt_conveyor_owner = 752424683945421
+
+[sub_resource type="Resource" id="Resource_ghoim"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = -1.59709
+arc_front = 13.64291
+metadata/_curved_host = false
+metadata/_owner_id = 752424683945421
+
+[sub_resource type="Resource" id="Resource_7nms4"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 11.28
+metadata/_belt_conveyor_owner = 752429851315520
+
+[sub_resource type="Resource" id="Resource_l7hv3"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752432434998950
+
+[sub_resource type="Resource" id="Resource_73rn2"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752435018725219
+
+[sub_resource type="Resource" id="Resource_viwuy"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752437602381527
+
+[sub_resource type="Resource" id="Resource_dwc7a"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 2.84
+metadata/_belt_conveyor_owner = 752443239508838
+
+[sub_resource type="Resource" id="Resource_lbxf5"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = -1.59709
+arc_front = 13.64291
+metadata/_curved_host = false
+metadata/_owner_id = 752443239508838
+
+[sub_resource type="Resource" id="Resource_ijqaa"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 11.36
+metadata/_belt_conveyor_owner = 752448406901626
+
+[sub_resource type="Resource" id="Resource_kc3bm"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752450990590818
+
+[sub_resource type="Resource" id="Resource_23pe3"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752453574271011
+
+[sub_resource type="Resource" id="Resource_2rwhf"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752456157978022
+
+[sub_resource type="Resource" id="Resource_twbij"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 2.84
+metadata/_belt_conveyor_owner = 752461795175137
+
+[sub_resource type="Resource" id="Resource_585g1"]
+resource_local_to_scene = true
+script = ExtResource("5_sgopening")
+arc_back = -1.562646
+arc_front = 13.677354
+metadata/_curved_host = false
+metadata/_owner_id = 752461795175137
+
+[sub_resource type="Resource" id="Resource_xd1df"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 14.32
+metadata/_belt_conveyor_owner = 752466962502603
+
+[sub_resource type="Resource" id="Resource_5bf67"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752469546193883
+
+[sub_resource type="Resource" id="Resource_80o66"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752472129900846
+
+[sub_resource type="Resource" id="Resource_6b8f6"]
+resource_local_to_scene = true
+script = ExtResource("4_segscript")
+length = 1.2
+metadata/_belt_conveyor_owner = 752474713603769
+
+[sub_resource type="Resource" id="Resource_yr3mw"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_kpbhe"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_yr3mw")]
+
+[sub_resource type="Resource" id="Resource_sm5fr"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_8jthy"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_sm5fr")]
+
+[sub_resource type="Resource" id="Resource_norrl"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_76b84"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 1, 1, 0.5)
+
+[sub_resource type="Resource" id="Resource_k7it1"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_norrl"), SubResource("Resource_76b84")]
+
+[sub_resource type="Resource" id="Resource_waaq1"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_1mymc"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 1, 1, 0.5)
+
+[sub_resource type="Resource" id="Resource_p6u2n"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_waaq1"), SubResource("Resource_1mymc")]
+
+[sub_resource type="Resource" id="Resource_4rb2w"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_fajtu"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_4rb2w")]
+
+[sub_resource type="Resource" id="Resource_ryco0"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 1, 1, 0.5)
+
+[sub_resource type="Resource" id="Resource_p0474"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_ryco0")]
+
+[sub_resource type="Resource" id="Resource_cov76"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_1hg0x"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_cov76")]
+
+[sub_resource type="Resource" id="Resource_ktwa0"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_ennjy"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_ktwa0")]
+
+[sub_resource type="Resource" id="Resource_eydg0"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_8blti"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_eydg0")]
+
+[sub_resource type="Resource" id="Resource_dmvov"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_e84qv"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_dmvov")]
+
+[sub_resource type="Resource" id="Resource_08jxr"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_fgcye"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_08jxr")]
+
+[sub_resource type="Resource" id="Resource_2xvj7"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_rkwvk"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_2xvj7")]
+
+[sub_resource type="Resource" id="Resource_fxi61"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 1, 1, 0.5)
+
+[sub_resource type="Resource" id="Resource_tnlxu"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_fxi61")]
+
+[sub_resource type="Resource" id="Resource_8w6t5"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_12368"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_8w6t5")]
+
+[sub_resource type="Resource" id="Resource_obnf2"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0.5, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_xngvb"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_obnf2")]
+
+[sub_resource type="Resource" id="Resource_182py"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_segment_data_script")
+segment_color = Color(1, 0, 0, 0.5)
+
+[sub_resource type="Resource" id="Resource_5ewsd"]
+resource_local_to_scene = true
+script = ExtResource("auto_stack_light_data_script")
+segment_datas = [SubResource("Resource_182py")]
+
+[node name="GeneratedConveyors" type="Node3D" unique_id=994832518]
+
+[node name="NCP1_1_VFD" parent="." unique_id=459347140 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 67.12666, 0, 7.949932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_iuaa8")])
+speed = 1.954166e-15
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_s5y5q")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(20.58, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="NCP1_1_VFD_APF" parent="." unique_id=769077855 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 57.086666, -0.5, 6.987932)
+name_text = "NCP1_1"
+design_fpm = 300
+auto_connection_fault_interval_minutes = 6.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../NCP1_1_DISC")])
+conveyor_path = NodePath("../NCP1_1_VFD")
+enable_comms = true
+connection_faulted_tag_name = "NCP1_1_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "NCP1_1_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "NCP1_1_VFD:I.DisconnectClosed"
+fault_tag_name = "NCP1_1_VFD:I.Fault"
+running_tag_name = "NCP1_1_VFD:I.Running"
+safe_torque_enabled_tag_name = "NCP1_1_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "NCP1_1_VFD:I.OutputCurrent"
+output_voltage_tag_name = "NCP1_1_VFD:I.OutputVoltage"
+velocity_tag_name = "NCP1_1_VFD:I.Velocity"
+trip_fault_code_tag_name = "NCP1_1_VFD:I.TripFaultCode"
+stop_tag_name = "NCP1_1_VFD:O.Stop"
+start_tag_name = "NCP1_1_VFD:O.Start"
+direction_cmd_0_tag_name = "NCP1_1_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "NCP1_1_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "NCP1_1_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "NCP1_1_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "NCP1_1_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "NCP1_1_VFD:O.DynamicDecelTime"
+
+[node name="NCP1_1_DISC" parent="." unique_id=202353453 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-2, 0, 0, 0, 2, 0, 0, 0, -2, 57.286667, -0.06, 6.987932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "NCP1_1_DISC_OIP"
+
+[node name="NCP1_2_VFD" parent="." unique_id=1736759740 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 46.536667, 0, 7.949932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_2j6u8")])
+speed = 1.954166e-15
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_uvjib")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(21.1, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="NCP1_2_VFD_APF" parent="." unique_id=1798168483 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 36.236668, -0.5, 6.987932)
+name_text = "NCP1_2"
+design_fpm = 300
+auto_trip_interval_minutes = 10.0
+auto_connection_fault_interval_minutes = 6.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../NCP1_2_DISC")])
+conveyor_path = NodePath("../NCP1_2_VFD")
+enable_comms = true
+connection_faulted_tag_name = "NCP1_2_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "NCP1_2_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "NCP1_2_VFD:I.DisconnectClosed"
+fault_tag_name = "NCP1_2_VFD:I.Fault"
+running_tag_name = "NCP1_2_VFD:I.Running"
+safe_torque_enabled_tag_name = "NCP1_2_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "NCP1_2_VFD:I.OutputCurrent"
+output_voltage_tag_name = "NCP1_2_VFD:I.OutputVoltage"
+velocity_tag_name = "NCP1_2_VFD:I.Velocity"
+trip_fault_code_tag_name = "NCP1_2_VFD:I.TripFaultCode"
+stop_tag_name = "NCP1_2_VFD:O.Stop"
+start_tag_name = "NCP1_2_VFD:O.Start"
+direction_cmd_0_tag_name = "NCP1_2_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "NCP1_2_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "NCP1_2_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "NCP1_2_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "NCP1_2_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "NCP1_2_VFD:O.DynamicDecelTime"
+
+[node name="NCP1_2_DISC" parent="." unique_id=434215074 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-2, 0, 0, 0, 2, 0, 0, 0, -2, 36.436665, -0.06, 6.987932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "NCP1_2_DISC_OIP"
+
+[node name="NCP1_3_VFD" parent="." unique_id=1927086523 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 25.446667, 0, 7.949932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_mk562")])
+speed = 1.954166e-15
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_toksl"), SubResource("Resource_1f4un")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(21.06, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="NCP1_3_VFD_APF" parent="." unique_id=1699505361 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 15.166666, -0.5, 6.987932)
+name_text = "NCP1_3"
+design_fpm = 300
+auto_trip_interval_minutes = 14.0
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../NCP1_3_DISC")])
+conveyor_path = NodePath("../NCP1_3_VFD")
+enable_comms = true
+connection_faulted_tag_name = "NCP1_3_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "NCP1_3_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "NCP1_3_VFD:I.DisconnectClosed"
+fault_tag_name = "NCP1_3_VFD:I.Fault"
+running_tag_name = "NCP1_3_VFD:I.Running"
+safe_torque_enabled_tag_name = "NCP1_3_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "NCP1_3_VFD:I.OutputCurrent"
+output_voltage_tag_name = "NCP1_3_VFD:I.OutputVoltage"
+velocity_tag_name = "NCP1_3_VFD:I.Velocity"
+trip_fault_code_tag_name = "NCP1_3_VFD:I.TripFaultCode"
+stop_tag_name = "NCP1_3_VFD:O.Stop"
+start_tag_name = "NCP1_3_VFD:O.Start"
+direction_cmd_0_tag_name = "NCP1_3_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "NCP1_3_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "NCP1_3_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "NCP1_3_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "NCP1_3_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "NCP1_3_VFD:O.DynamicDecelTime"
+
+[node name="NCP1_3_DISC" parent="." unique_id=1188441517 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-2, 0, 0, 0, 2, 0, 0, 0, -2, 15.366666, -0.06, 6.987932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "NCP1_3_DISC_OIP"
+
+[node name="NCP1_4A_VFD" parent="." unique_id=904587190 instance=ExtResource("auto_roller")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.686666, 0, 7.949932)
+speed = 1.954166e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(3.72, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="NCP1_4B_VFD" parent="." unique_id=924747126 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-1, 0, 0, 0, 0, -1, 0, -1, 0, 4.686666, 0.184, 7.199932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_f2gc0")])
+width = 0.324
+height = 0.1
+speed = 1.954166e-15
+frame_rails_enabled = false
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+legs_enabled = false
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(4.02, 0.1, 0.324)
+metadata/hijack_scale = true
+
+[node name="NCP1_4A_VFD_APF" parent="." unique_id=759289343 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 3.796666, -0.5, 6.987932)
+name_text = "NCP1_4A"
+design_fpm = 300
+auto_trip_interval_minutes = 14.0
+auto_connection_fault_interval_minutes = 9.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../NCP1_4A_DISC")])
+conveyor_path = NodePath("../NCP1_4A_VFD")
+enable_comms = true
+connection_faulted_tag_name = "NCP1_4A_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "NCP1_4A_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "NCP1_4A_VFD:I.DisconnectClosed"
+fault_tag_name = "NCP1_4A_VFD:I.Fault"
+running_tag_name = "NCP1_4A_VFD:I.Running"
+safe_torque_enabled_tag_name = "NCP1_4A_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "NCP1_4A_VFD:I.OutputCurrent"
+output_voltage_tag_name = "NCP1_4A_VFD:I.OutputVoltage"
+velocity_tag_name = "NCP1_4A_VFD:I.Velocity"
+trip_fault_code_tag_name = "NCP1_4A_VFD:I.TripFaultCode"
+stop_tag_name = "NCP1_4A_VFD:O.Stop"
+start_tag_name = "NCP1_4A_VFD:O.Start"
+direction_cmd_0_tag_name = "NCP1_4A_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "NCP1_4A_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "NCP1_4A_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "NCP1_4A_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "NCP1_4A_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "NCP1_4A_VFD:O.DynamicDecelTime"
+
+[node name="NCP1_4A_DISC" parent="." unique_id=1977486856 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-2, 0, 0, 0, 2, 0, 0, 0, -2, 3.996666, -0.06, 6.987932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "NCP1_4A_DISC_OIP"
+
+[node name="NCP1_4B_VFD_APF" parent="." unique_id=921709500 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 2.016666, -0.5, 6.987932)
+name_text = "NCP1_4B"
+design_fpm = 300
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../NCP1_4B_DISC")])
+conveyor_path = NodePath("../NCP1_4B_VFD")
+enable_comms = true
+connection_faulted_tag_name = "NCP1_4B_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "NCP1_4B_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "NCP1_4B_VFD:I.DisconnectClosed"
+fault_tag_name = "NCP1_4B_VFD:I.Fault"
+running_tag_name = "NCP1_4B_VFD:I.Running"
+safe_torque_enabled_tag_name = "NCP1_4B_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "NCP1_4B_VFD:I.OutputCurrent"
+output_voltage_tag_name = "NCP1_4B_VFD:I.OutputVoltage"
+velocity_tag_name = "NCP1_4B_VFD:I.Velocity"
+trip_fault_code_tag_name = "NCP1_4B_VFD:I.TripFaultCode"
+stop_tag_name = "NCP1_4B_VFD:O.Stop"
+start_tag_name = "NCP1_4B_VFD:O.Start"
+direction_cmd_0_tag_name = "NCP1_4B_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "NCP1_4B_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "NCP1_4B_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "NCP1_4B_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "NCP1_4B_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "NCP1_4B_VFD:O.DynamicDecelTime"
+
+[node name="NCP1_4B_DISC" parent="." unique_id=545901990 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-2, 0, 0, 0, 2, 0, 0, 0, -2, 2.216666, -0.06, 6.987932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "NCP1_4B_DISC_OIP"
+
+[node name="UL17_19_VFD" parent="." unique_id=902153219 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.637854, 0, 30.449932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_e506j")])
+speed = 2.52489e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(11.86, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_19_VFD_APF" parent="." unique_id=70511682 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 14.599854, -0.5, 24.769932)
+name_text = "UL17_19"
+design_fpm = 300
+auto_trip_interval_minutes = 12.0
+auto_connection_fault_interval_minutes = 8.0
+connection_fault_duration_seconds = 6.0
+epc_paths = Array[NodePath]([NodePath("../UL17_19_EPC1")])
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_19_DISC")])
+conveyor_path = NodePath("../UL17_19_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_19_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_19_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_19_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_19_VFD:I.Fault"
+running_tag_name = "UL17_19_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_19_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_19_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_19_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_19_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_19_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_19_VFD:O.Stop"
+start_tag_name = "UL17_19_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_19_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_19_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_19_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_19_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_19_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_19_VFD:O.DynamicDecelTime"
+
+[node name="UL17_19_DISC" parent="." unique_id=357890881 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 14.599854, -0.06, 24.969933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_19_DISC_OIP"
+
+[node name="UL17_20_VFD" parent="." unique_id=1976956385 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.637854, 0, 18.589931)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_svr2r")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_20_VFD_APF" parent="." unique_id=1133104500 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 14.599854, -0.5, 17.989931)
+name_text = "UL17_20"
+design_fpm = 420
+auto_trip_interval_minutes = 6.0
+auto_connection_fault_interval_minutes = 14.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_20_DISC")])
+conveyor_path = NodePath("../UL17_20_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_20_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_20_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_20_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_20_VFD:I.Fault"
+running_tag_name = "UL17_20_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_20_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_20_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_20_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_20_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_20_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_20_VFD:O.Stop"
+start_tag_name = "UL17_20_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_20_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_20_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_20_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_20_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_20_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_20_VFD:O.DynamicDecelTime"
+
+[node name="UL17_20_DISC" parent="." unique_id=908665256 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 14.599854, -0.06, 18.189932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_20_DISC_OIP"
+
+[node name="UL17_21_VFD" parent="." unique_id=1895304292 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.637854, 0, 16.869932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_s0vo2")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_21_VFD_APF" parent="." unique_id=1515740755 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 14.599854, -0.5, 16.269932)
+name_text = "UL17_21"
+design_fpm = 420
+auto_trip_interval_minutes = 7.0
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_21_DISC")])
+conveyor_path = NodePath("../UL17_21_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_21_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_21_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_21_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_21_VFD:I.Fault"
+running_tag_name = "UL17_21_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_21_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_21_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_21_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_21_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_21_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_21_VFD:O.Stop"
+start_tag_name = "UL17_21_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_21_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_21_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_21_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_21_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_21_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_21_VFD:O.DynamicDecelTime"
+
+[node name="UL17_21_DISC" parent="." unique_id=1370425142 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 14.599854, -0.06, 16.469933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_21_DISC_OIP"
+
+[node name="UL17_22_VFD" parent="." unique_id=1098069559 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.637854, 0, 15.149932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_2tcwy")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_22_VFD_APF" parent="." unique_id=598407394 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 14.599854, -0.5, 14.549932)
+name_text = "UL17_22"
+design_fpm = 420
+auto_trip_interval_minutes = 11.0
+auto_connection_fault_interval_minutes = 11.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_22_DISC")])
+conveyor_path = NodePath("../UL17_22_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_22_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_22_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_22_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_22_VFD:I.Fault"
+running_tag_name = "UL17_22_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_22_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_22_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_22_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_22_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_22_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_22_VFD:O.Stop"
+start_tag_name = "UL17_22_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_22_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_22_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_22_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_22_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_22_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_22_VFD:O.DynamicDecelTime"
+
+[node name="UL17_22_DISC" parent="." unique_id=775768139 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 14.599854, -0.06, 14.749932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_22_DISC_OIP"
+
+[node name="UL17_23_VFD" parent="." unique_id=859062340 instance=ExtResource("1_ef28r")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 11.090023, 0, 13.559701)
+inner_radius = 1.764462
+conveyor_angle = 60.0
+reverse = true
+speed = 0.0
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(6.576923, 0.5, 6.576923)
+metadata/hijack_scale = true
+
+[node name="UL17_23_VFD_APF" parent="." unique_id=1783724692 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 12.45082, -0.5, 10.276816)
+name_text = "UL17_23"
+design_fpm = 350
+auto_trip_interval_minutes = 10.0
+auto_connection_fault_interval_minutes = 7.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_23_DISC")])
+conveyor_path = NodePath("../UL17_23_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_23_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_23_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_23_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_23_VFD:I.Fault"
+running_tag_name = "UL17_23_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_23_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_23_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_23_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_23_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_23_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_23_VFD:O.Stop"
+start_tag_name = "UL17_23_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_23_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_23_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_23_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_23_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_23_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_23_VFD:O.DynamicDecelTime"
+
+[node name="UL17_23_DISC" parent="." unique_id=421688563 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 12.624025, -0.06, 10.376816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_23_DISC_OIP"
+
+[node name="UL17_24_VFD" parent="." unique_id=1861887235 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 12.056422, 0, 11.159932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_ynadj")])
+speed = 0.0
+right_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_2dusb")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(3.34, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_24_VFD_APF" parent="." unique_id=994309529 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 11.307666, -0.5, 9.616816)
+name_text = "UL17_24"
+design_fpm = 350
+auto_trip_interval_minutes = 11.0
+auto_connection_fault_interval_minutes = 11.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_24_DISC")])
+conveyor_path = NodePath("../UL17_24_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_24_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_24_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_24_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_24_VFD:I.Fault"
+running_tag_name = "UL17_24_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_24_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_24_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_24_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_24_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_24_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_24_VFD:O.Stop"
+start_tag_name = "UL17_24_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_24_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_24_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_24_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_24_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_24_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_24_VFD:O.DynamicDecelTime"
+
+[node name="UL17_24_DISC" parent="." unique_id=1334921767 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 11.480871, -0.06, 9.716816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_24_DISC_OIP"
+
+[node name="UL17_25_VFD" parent="." unique_id=749283775 instance=ExtResource("5_sfsdb")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 9.336422, 0, 9.579932)
+angle_downstream = -1.0471975511965976
+conveyor_count = 20
+speed = 0.0
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.835, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL17_25_VFD_APF" parent="." unique_id=981246207 instance=ExtResource("auto_apf")]
+transform = Transform3D(1.299038, 0, -0.75, 0, 1.5, 0, 0.75, 0, 1.299038, 9.959605, -0.5, 11.050548)
+name_text = "UL17_25"
+design_fpm = 350
+auto_trip_interval_minutes = 11.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL17_25_DISC")])
+conveyor_path = NodePath("../UL17_25_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL17_25_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL17_25_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL17_25_VFD:I.DisconnectClosed"
+fault_tag_name = "UL17_25_VFD:I.Fault"
+running_tag_name = "UL17_25_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL17_25_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL17_25_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL17_25_VFD:I.OutputVoltage"
+velocity_tag_name = "UL17_25_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL17_25_VFD:I.TripFaultCode"
+stop_tag_name = "UL17_25_VFD:O.Stop"
+start_tag_name = "UL17_25_VFD:O.Start"
+direction_cmd_0_tag_name = "UL17_25_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL17_25_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL17_25_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL17_25_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL17_25_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL17_25_VFD:O.DynamicDecelTime"
+
+[node name="UL17_25_DISC" parent="." unique_id=1737234737 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(1.732051, 0, -1, 0, 2, 0, 1, 0, 1.732051, 10.13281, -0.06, 11.150548)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL17_25_DISC_OIP"
+
+[node name="UL20_19_VFD" parent="." unique_id=1941511227 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 27.726665, 0, 30.449932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_255au")])
+speed = 1.954166e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(11.86, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_19_VFD_APF" parent="." unique_id=1230139438 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 28.688665, -0.5, 24.769932)
+name_text = "UL20_19"
+design_fpm = 300
+auto_trip_interval_minutes = 7.0
+auto_connection_fault_interval_minutes = 12.0
+connection_fault_duration_seconds = 6.0
+epc_paths = Array[NodePath]([NodePath("../UL20_19_EPC1")])
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_19_DISC")])
+conveyor_path = NodePath("../UL20_19_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_19_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_19_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_19_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_19_VFD:I.Fault"
+running_tag_name = "UL20_19_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_19_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_19_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_19_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_19_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_19_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_19_VFD:O.Stop"
+start_tag_name = "UL20_19_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_19_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_19_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_19_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_19_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_19_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_19_VFD:O.DynamicDecelTime"
+
+[node name="UL20_19_DISC" parent="." unique_id=821310988 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 28.688665, -0.06, 24.969933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_19_DISC_OIP"
+
+[node name="UL20_20_VFD" parent="." unique_id=1666067247 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 27.726665, 0, 18.589931)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_5h8do")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_20_VFD_APF" parent="." unique_id=1965608295 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 28.688665, -0.5, 17.989931)
+name_text = "UL20_20"
+design_fpm = 420
+auto_trip_interval_minutes = 6.0
+auto_connection_fault_interval_minutes = 12.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_20_DISC")])
+conveyor_path = NodePath("../UL20_20_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_20_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_20_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_20_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_20_VFD:I.Fault"
+running_tag_name = "UL20_20_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_20_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_20_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_20_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_20_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_20_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_20_VFD:O.Stop"
+start_tag_name = "UL20_20_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_20_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_20_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_20_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_20_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_20_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_20_VFD:O.DynamicDecelTime"
+
+[node name="UL20_20_DISC" parent="." unique_id=1546806319 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 28.688665, -0.06, 18.189932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_20_DISC_OIP"
+
+[node name="UL20_21_VFD" parent="." unique_id=1175991424 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 27.726665, 0, 16.869932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_l0ils")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_21_VFD_APF" parent="." unique_id=834905979 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 28.688665, -0.5, 16.269932)
+name_text = "UL20_21"
+design_fpm = 420
+auto_connection_fault_interval_minutes = 7.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_21_DISC")])
+conveyor_path = NodePath("../UL20_21_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_21_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_21_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_21_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_21_VFD:I.Fault"
+running_tag_name = "UL20_21_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_21_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_21_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_21_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_21_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_21_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_21_VFD:O.Stop"
+start_tag_name = "UL20_21_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_21_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_21_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_21_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_21_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_21_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_21_VFD:O.DynamicDecelTime"
+
+[node name="UL20_21_DISC" parent="." unique_id=1313873802 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 28.688665, -0.06, 16.469933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_21_DISC_OIP"
+
+[node name="UL20_22_VFD" parent="." unique_id=2084201923 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 27.726665, 0, 15.149932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_prpeb")])
+speed = 1.6071346e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_22_VFD_APF" parent="." unique_id=1967215429 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 28.688665, -0.5, 14.549932)
+name_text = "UL20_22"
+design_fpm = 420
+auto_trip_interval_minutes = 9.0
+auto_connection_fault_interval_minutes = 12.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_22_DISC")])
+conveyor_path = NodePath("../UL20_22_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_22_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_22_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_22_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_22_VFD:I.Fault"
+running_tag_name = "UL20_22_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_22_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_22_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_22_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_22_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_22_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_22_VFD:O.Stop"
+start_tag_name = "UL20_22_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_22_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_22_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_22_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_22_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_22_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_22_VFD:O.DynamicDecelTime"
+
+[node name="UL20_22_DISC" parent="." unique_id=981287475 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 28.688665, -0.06, 14.749932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_22_DISC_OIP"
+
+[node name="UL20_23_VFD" parent="." unique_id=291400284 instance=ExtResource("1_ef28r")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 25.176193, 0, 13.559701)
+inner_radius = 1.764462
+conveyor_angle = 60.0
+reverse = true
+speed = 0.0
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(6.576923, 0.5, 6.576923)
+metadata/hijack_scale = true
+
+[node name="UL20_23_VFD_APF" parent="." unique_id=2137455508 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 26.49082, -0.5, 10.276816)
+name_text = "UL20_23"
+design_fpm = 350
+auto_trip_interval_minutes = 11.0
+auto_connection_fault_interval_minutes = 6.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_23_DISC")])
+conveyor_path = NodePath("../UL20_23_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_23_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_23_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_23_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_23_VFD:I.Fault"
+running_tag_name = "UL20_23_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_23_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_23_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_23_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_23_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_23_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_23_VFD:O.Stop"
+start_tag_name = "UL20_23_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_23_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_23_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_23_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_23_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_23_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_23_VFD:O.DynamicDecelTime"
+
+[node name="UL20_23_DISC" parent="." unique_id=1285581867 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 26.664024, -0.06, 10.376816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_23_DISC_OIP"
+
+[node name="UL20_24_VFD" parent="." unique_id=2064170256 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 26.096422, 0, 11.159932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_0hmjd")])
+speed = 0.0
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_ghoim")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(3.34, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_24_VFD_APF" parent="." unique_id=1930553722 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 25.347666, -0.5, 9.616816)
+name_text = "UL20_24"
+design_fpm = 350
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_24_DISC")])
+conveyor_path = NodePath("../UL20_24_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_24_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_24_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_24_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_24_VFD:I.Fault"
+running_tag_name = "UL20_24_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_24_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_24_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_24_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_24_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_24_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_24_VFD:O.Stop"
+start_tag_name = "UL20_24_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_24_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_24_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_24_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_24_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_24_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_24_VFD:O.DynamicDecelTime"
+
+[node name="UL20_24_DISC" parent="." unique_id=1205941633 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 25.52087, -0.06, 9.716816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_24_DISC_OIP"
+
+[node name="UL20_25_VFD" parent="." unique_id=806573993 instance=ExtResource("5_sfsdb")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 23.373743, 0, 9.589932)
+angle_downstream = -1.0471975511965976
+conveyor_count = 20
+speed = 0.0
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.855, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL20_25_VFD_APF" parent="." unique_id=1794157629 instance=ExtResource("auto_apf")]
+transform = Transform3D(1.299038, 0, -0.75, 0, 1.5, 0, 0.75, 0, 1.299038, 24.014246, -0.5, 11.070548)
+name_text = "UL20_25"
+design_fpm = 350
+auto_trip_interval_minutes = 10.0
+auto_connection_fault_interval_minutes = 6.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL20_25_DISC")])
+conveyor_path = NodePath("../UL20_25_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL20_25_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL20_25_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL20_25_VFD:I.DisconnectClosed"
+fault_tag_name = "UL20_25_VFD:I.Fault"
+running_tag_name = "UL20_25_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL20_25_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL20_25_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL20_25_VFD:I.OutputVoltage"
+velocity_tag_name = "UL20_25_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL20_25_VFD:I.TripFaultCode"
+stop_tag_name = "UL20_25_VFD:O.Stop"
+start_tag_name = "UL20_25_VFD:O.Start"
+direction_cmd_0_tag_name = "UL20_25_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL20_25_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL20_25_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL20_25_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL20_25_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL20_25_VFD:O.DynamicDecelTime"
+
+[node name="UL20_25_DISC" parent="." unique_id=1954667870 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(1.732051, 0, -1, 0, 2, 0, 1, 0, 1.732051, 24.18745, -0.06, 11.170548)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL20_25_DISC_OIP"
+
+[node name="UL23_19_VFD" parent="." unique_id=2066876509 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 42.046665, 0, 30.409931)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_7nms4")])
+speed = 1.2984405e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(11.78, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_19_VFD_APF" parent="." unique_id=828580241 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 43.008667, -0.5, 24.769932)
+name_text = "UL23_19"
+design_fpm = 300
+auto_trip_interval_minutes = 14.0
+connection_fault_duration_seconds = 6.0
+epc_paths = Array[NodePath]([NodePath("../UL23_19_EPC1")])
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_19_DISC")])
+conveyor_path = NodePath("../UL23_19_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_19_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_19_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_19_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_19_VFD:I.Fault"
+running_tag_name = "UL23_19_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_19_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_19_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_19_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_19_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_19_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_19_VFD:O.Stop"
+start_tag_name = "UL23_19_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_19_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_19_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_19_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_19_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_19_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_19_VFD:O.DynamicDecelTime"
+
+[node name="UL23_19_DISC" parent="." unique_id=1447974913 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 43.008667, -0.06, 24.969933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_19_DISC_OIP"
+
+[node name="UL23_20_VFD" parent="." unique_id=349476738 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 42.046665, 0, 18.589931)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_l7hv3")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_20_VFD_APF" parent="." unique_id=1819578014 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 43.008667, -0.5, 17.989931)
+name_text = "UL23_20"
+design_fpm = 420
+auto_trip_interval_minutes = 12.0
+auto_connection_fault_interval_minutes = 11.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_20_DISC")])
+conveyor_path = NodePath("../UL23_20_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_20_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_20_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_20_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_20_VFD:I.Fault"
+running_tag_name = "UL23_20_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_20_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_20_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_20_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_20_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_20_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_20_VFD:O.Stop"
+start_tag_name = "UL23_20_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_20_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_20_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_20_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_20_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_20_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_20_VFD:O.DynamicDecelTime"
+
+[node name="UL23_20_DISC" parent="." unique_id=416753220 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 43.008667, -0.06, 18.189932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_20_DISC_OIP"
+
+[node name="UL23_21_VFD" parent="." unique_id=472934864 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 42.046665, 0, 16.869932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_73rn2")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_21_VFD_APF" parent="." unique_id=754578355 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 43.008667, -0.5, 16.269932)
+name_text = "UL23_21"
+design_fpm = 420
+auto_trip_interval_minutes = 11.0
+auto_connection_fault_interval_minutes = 7.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_21_DISC")])
+conveyor_path = NodePath("../UL23_21_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_21_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_21_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_21_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_21_VFD:I.Fault"
+running_tag_name = "UL23_21_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_21_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_21_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_21_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_21_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_21_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_21_VFD:O.Stop"
+start_tag_name = "UL23_21_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_21_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_21_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_21_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_21_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_21_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_21_VFD:O.DynamicDecelTime"
+
+[node name="UL23_21_DISC" parent="." unique_id=417564894 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 43.008667, -0.06, 16.469933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_21_DISC_OIP"
+
+[node name="UL23_22_VFD" parent="." unique_id=628357122 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 42.046665, 0, 15.149932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_viwuy")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_22_VFD_APF" parent="." unique_id=318627210 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 43.008667, -0.5, 14.549932)
+name_text = "UL23_22"
+design_fpm = 420
+auto_trip_interval_minutes = 6.0
+auto_connection_fault_interval_minutes = 7.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_22_DISC")])
+conveyor_path = NodePath("../UL23_22_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_22_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_22_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_22_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_22_VFD:I.Fault"
+running_tag_name = "UL23_22_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_22_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_22_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_22_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_22_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_22_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_22_VFD:O.Stop"
+start_tag_name = "UL23_22_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_22_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_22_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_22_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_22_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_22_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_22_VFD:O.DynamicDecelTime"
+
+[node name="UL23_22_DISC" parent="." unique_id=482566136 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 43.008667, -0.06, 14.749932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_22_DISC_OIP"
+
+[node name="UL23_23_VFD" parent="." unique_id=892553838 instance=ExtResource("1_ef28r")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 39.496193, 0, 13.559701)
+inner_radius = 1.764462
+conveyor_angle = 60.0
+reverse = true
+speed = 0.0
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(6.576923, 0.5, 6.576923)
+metadata/hijack_scale = true
+
+[node name="UL23_23_VFD_APF" parent="." unique_id=881066045 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 40.81082, -0.5, 10.276816)
+name_text = "UL23_23"
+design_fpm = 350
+auto_trip_interval_minutes = 8.0
+auto_connection_fault_interval_minutes = 11.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_23_DISC")])
+conveyor_path = NodePath("../UL23_23_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_23_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_23_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_23_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_23_VFD:I.Fault"
+running_tag_name = "UL23_23_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_23_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_23_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_23_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_23_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_23_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_23_VFD:O.Stop"
+start_tag_name = "UL23_23_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_23_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_23_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_23_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_23_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_23_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_23_VFD:O.DynamicDecelTime"
+
+[node name="UL23_23_DISC" parent="." unique_id=1301406713 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 40.984024, -0.06, 10.376816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_23_DISC_OIP"
+
+[node name="UL23_24_VFD" parent="." unique_id=1723448910 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 40.416424, 0, 11.159932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_dwc7a")])
+speed = 0.0
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_lbxf5")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(3.34, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_24_VFD_APF" parent="." unique_id=850881671 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 39.667667, -0.5, 9.616816)
+name_text = "UL23_24"
+design_fpm = 350
+auto_trip_interval_minutes = 13.0
+auto_connection_fault_interval_minutes = 7.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_24_DISC")])
+conveyor_path = NodePath("../UL23_24_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_24_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_24_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_24_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_24_VFD:I.Fault"
+running_tag_name = "UL23_24_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_24_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_24_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_24_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_24_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_24_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_24_VFD:O.Stop"
+start_tag_name = "UL23_24_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_24_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_24_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_24_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_24_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_24_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_24_VFD:O.DynamicDecelTime"
+
+[node name="UL23_24_DISC" parent="." unique_id=201673989 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 39.84087, -0.06, 9.716816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_24_DISC_OIP"
+
+[node name="UL23_25_VFD" parent="." unique_id=165276581 instance=ExtResource("5_sfsdb")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 37.693745, 0, 9.589932)
+angle_downstream = -1.0471975511965976
+conveyor_count = 20
+speed = 0.0
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.855, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL23_25_VFD_APF" parent="." unique_id=2130241061 instance=ExtResource("auto_apf")]
+transform = Transform3D(1.299038, 0, -0.75, 0, 1.5, 0, 0.75, 0, 1.299038, 38.334248, -0.5, 11.070548)
+name_text = "UL23_25"
+design_fpm = 350
+auto_trip_interval_minutes = 13.0
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL23_25_DISC")])
+conveyor_path = NodePath("../UL23_25_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL23_25_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL23_25_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL23_25_VFD:I.DisconnectClosed"
+fault_tag_name = "UL23_25_VFD:I.Fault"
+running_tag_name = "UL23_25_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL23_25_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL23_25_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL23_25_VFD:I.OutputVoltage"
+velocity_tag_name = "UL23_25_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL23_25_VFD:I.TripFaultCode"
+stop_tag_name = "UL23_25_VFD:O.Stop"
+start_tag_name = "UL23_25_VFD:O.Start"
+direction_cmd_0_tag_name = "UL23_25_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL23_25_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL23_25_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL23_25_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL23_25_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL23_25_VFD:O.DynamicDecelTime"
+
+[node name="UL23_25_DISC" parent="." unique_id=1660435479 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(1.732051, 0, -1, 0, 2, 0, 1, 0, 1.732051, 38.50745, -0.06, 11.170548)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL23_25_DISC_OIP"
+
+[node name="UL26_19_VFD" parent="." unique_id=378423708 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 56.166664, 0, 30.449932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_ijqaa")])
+speed = 1.5239999999999934
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(11.86, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_19_VFD_APF" parent="." unique_id=1150468320 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 57.128666, -0.5, 24.769932)
+name_text = "UL26_19"
+design_fpm = 300
+auto_trip_interval_minutes = 14.0
+auto_connection_fault_interval_minutes = 14.0
+connection_fault_duration_seconds = 6.0
+epc_paths = Array[NodePath]([NodePath("../UL26_19_EPC1")])
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_19_DISC")])
+conveyor_path = NodePath("../UL26_19_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_19_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_19_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_19_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_19_VFD:I.Fault"
+running_tag_name = "UL26_19_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_19_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_19_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_19_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_19_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_19_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_19_VFD:O.Stop"
+start_tag_name = "UL26_19_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_19_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_19_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_19_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_19_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_19_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_19_VFD:O.DynamicDecelTime"
+
+[node name="UL26_19_DISC" parent="." unique_id=841898156 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 57.128666, -0.06, 24.969933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_19_DISC_OIP"
+
+[node name="UL26_20_VFD" parent="." unique_id=742954615 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 56.166664, 0, 18.589931)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_kc3bm")])
+speed = 0.43383200000000727
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_20_VFD_APF" parent="." unique_id=1453110013 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 57.128666, -0.5, 17.989931)
+name_text = "UL26_20"
+design_fpm = 420
+auto_trip_interval_minutes = 13.0
+auto_connection_fault_interval_minutes = 13.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_20_DISC")])
+conveyor_path = NodePath("../UL26_20_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_20_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_20_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_20_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_20_VFD:I.Fault"
+running_tag_name = "UL26_20_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_20_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_20_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_20_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_20_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_20_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_20_VFD:O.Stop"
+start_tag_name = "UL26_20_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_20_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_20_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_20_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_20_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_20_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_20_VFD:O.DynamicDecelTime"
+
+[node name="UL26_20_DISC" parent="." unique_id=1547016217 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 57.128666, -0.06, 18.189932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_20_DISC_OIP"
+
+[node name="UL26_21_VFD" parent="." unique_id=809015165 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 56.166664, 0, 16.869932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_23pe3")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_21_VFD_APF" parent="." unique_id=1482256225 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 57.128666, -0.5, 16.269932)
+name_text = "UL26_21"
+design_fpm = 420
+auto_trip_interval_minutes = 10.0
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_21_DISC")])
+conveyor_path = NodePath("../UL26_21_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_21_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_21_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_21_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_21_VFD:I.Fault"
+running_tag_name = "UL26_21_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_21_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_21_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_21_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_21_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_21_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_21_VFD:O.Stop"
+start_tag_name = "UL26_21_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_21_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_21_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_21_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_21_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_21_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_21_VFD:O.DynamicDecelTime"
+
+[node name="UL26_21_DISC" parent="." unique_id=1053299009 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 57.128666, -0.06, 16.469933)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_21_DISC_OIP"
+
+[node name="UL26_22_VFD" parent="." unique_id=1112368556 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 56.166664, 0, 15.149932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_2rwhf")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_22_VFD_APF" parent="." unique_id=1093639068 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 57.128666, -0.5, 14.549932)
+name_text = "UL26_22"
+design_fpm = 420
+auto_trip_interval_minutes = 12.0
+auto_connection_fault_interval_minutes = 10.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_22_DISC")])
+conveyor_path = NodePath("../UL26_22_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_22_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_22_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_22_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_22_VFD:I.Fault"
+running_tag_name = "UL26_22_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_22_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_22_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_22_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_22_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_22_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_22_VFD:O.Stop"
+start_tag_name = "UL26_22_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_22_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_22_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_22_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_22_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_22_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_22_VFD:O.DynamicDecelTime"
+
+[node name="UL26_22_DISC" parent="." unique_id=1920767130 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 57.128666, -0.06, 14.749932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_22_DISC_OIP"
+
+[node name="UL26_23_VFD" parent="." unique_id=1614675094 instance=ExtResource("1_ef28r")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 53.61619, 0, 13.559701)
+inner_radius = 1.764462
+conveyor_angle = 60.0
+reverse = true
+speed = 0.0
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(6.576923, 0.5, 6.576923)
+metadata/hijack_scale = true
+
+[node name="UL26_23_VFD_APF" parent="." unique_id=2065752205 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 54.93082, -0.5, 10.276816)
+name_text = "UL26_23"
+design_fpm = 350
+auto_trip_interval_minutes = 9.0
+auto_connection_fault_interval_minutes = 15.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_23_DISC")])
+conveyor_path = NodePath("../UL26_23_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_23_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_23_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_23_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_23_VFD:I.Fault"
+running_tag_name = "UL26_23_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_23_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_23_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_23_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_23_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_23_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_23_VFD:O.Stop"
+start_tag_name = "UL26_23_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_23_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_23_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_23_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_23_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_23_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_23_VFD:O.DynamicDecelTime"
+
+[node name="UL26_23_DISC" parent="." unique_id=599124936 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 55.104027, -0.06, 10.376816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_23_DISC_OIP"
+
+[node name="UL26_24_VFD" parent="." unique_id=613178851 instance=ExtResource("3_38ygf")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 54.536423, 0, 11.159932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_twbij")])
+speed = 0.0
+left_side_guards_enabled = false
+side_guard_openings = Array[ExtResource("5_sgopening")]([SubResource("Resource_585g1")])
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(3.34, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_24_VFD_APF" parent="." unique_id=1093574201 instance=ExtResource("auto_apf")]
+transform = Transform3D(-1.299038, 0, 0.75, 0, 1.5, 0, -0.75, 0, -1.299038, 53.787666, -0.5, 9.616816)
+name_text = "UL26_24"
+design_fpm = 350
+auto_trip_interval_minutes = 13.0
+auto_connection_fault_interval_minutes = 8.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_24_DISC")])
+conveyor_path = NodePath("../UL26_24_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_24_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_24_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_24_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_24_VFD:I.Fault"
+running_tag_name = "UL26_24_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_24_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_24_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_24_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_24_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_24_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_24_VFD:O.Stop"
+start_tag_name = "UL26_24_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_24_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_24_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_24_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_24_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_24_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_24_VFD:O.DynamicDecelTime"
+
+[node name="UL26_24_DISC" parent="." unique_id=1865765447 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(-1.732051, 0, 1, 0, 2, 0, -1, 0, -1.732051, 53.960873, -0.06, 9.716816)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_24_DISC_OIP"
+
+[node name="UL26_25_VFD" parent="." unique_id=206971934 instance=ExtResource("5_sfsdb")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, 51.814384, 0, 9.599932)
+angle_downstream = -1.0471975511965976
+conveyor_count = 20
+speed = 0.0
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.875, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL26_25_VFD_APF" parent="." unique_id=1290439030 instance=ExtResource("auto_apf")]
+transform = Transform3D(1.299038, 0, -0.75, 0, 1.5, 0, 0.75, 0, 1.299038, 52.472206, -0.5, 11.090548)
+name_text = "UL26_25"
+design_fpm = 350
+auto_trip_interval_minutes = 12.0
+auto_connection_fault_interval_minutes = 6.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL26_25_DISC")])
+conveyor_path = NodePath("../UL26_25_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL26_25_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL26_25_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL26_25_VFD:I.DisconnectClosed"
+fault_tag_name = "UL26_25_VFD:I.Fault"
+running_tag_name = "UL26_25_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL26_25_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL26_25_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL26_25_VFD:I.OutputVoltage"
+velocity_tag_name = "UL26_25_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL26_25_VFD:I.TripFaultCode"
+stop_tag_name = "UL26_25_VFD:O.Stop"
+start_tag_name = "UL26_25_VFD:O.Start"
+direction_cmd_0_tag_name = "UL26_25_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL26_25_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL26_25_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL26_25_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL26_25_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL26_25_VFD:O.DynamicDecelTime"
+
+[node name="UL26_25_DISC" parent="." unique_id=636520089 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(1.732051, 0, -1, 0, 2, 0, 1, 0, 1.732051, 52.645412, -0.06, 11.190548)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL26_25_DISC_OIP"
+
+[node name="UL29_19_VFD" parent="." unique_id=1959377245 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 70.20861, 0, 30.464588)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_xd1df")])
+speed = 1.2984405e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(14.82, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL29_19_VFD_APF" parent="." unique_id=1059761389 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 71.170616, -0.5, 23.304588)
+name_text = "UL29_19"
+design_fpm = 300
+auto_trip_interval_minutes = 14.0
+auto_connection_fault_interval_minutes = 9.0
+connection_fault_duration_seconds = 6.0
+epc_paths = Array[NodePath]([NodePath("../UL29_19_EPC1")])
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL29_19_DISC")])
+conveyor_path = NodePath("../UL29_19_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL29_19_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL29_19_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL29_19_VFD:I.DisconnectClosed"
+fault_tag_name = "UL29_19_VFD:I.Fault"
+running_tag_name = "UL29_19_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL29_19_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL29_19_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL29_19_VFD:I.OutputVoltage"
+velocity_tag_name = "UL29_19_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL29_19_VFD:I.TripFaultCode"
+stop_tag_name = "UL29_19_VFD:O.Stop"
+start_tag_name = "UL29_19_VFD:O.Start"
+direction_cmd_0_tag_name = "UL29_19_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL29_19_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL29_19_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL29_19_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL29_19_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL29_19_VFD:O.DynamicDecelTime"
+
+[node name="UL29_19_DISC" parent="." unique_id=473029097 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 71.170616, -0.06, 23.504587)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL29_19_DISC_OIP"
+
+[node name="UL29_20_VFD" parent="." unique_id=82311898 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 70.20861, 0, 15.629932)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_5bf67")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL29_20_VFD_APF" parent="." unique_id=937975083 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 71.170616, -0.5, 15.029932)
+name_text = "UL29_20"
+design_fpm = 420
+auto_trip_interval_minutes = 14.0
+auto_connection_fault_interval_minutes = 8.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL29_20_DISC")])
+conveyor_path = NodePath("../UL29_20_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL29_20_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL29_20_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL29_20_VFD:I.DisconnectClosed"
+fault_tag_name = "UL29_20_VFD:I.Fault"
+running_tag_name = "UL29_20_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL29_20_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL29_20_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL29_20_VFD:I.OutputVoltage"
+velocity_tag_name = "UL29_20_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL29_20_VFD:I.TripFaultCode"
+stop_tag_name = "UL29_20_VFD:O.Stop"
+start_tag_name = "UL29_20_VFD:O.Start"
+direction_cmd_0_tag_name = "UL29_20_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL29_20_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL29_20_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL29_20_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL29_20_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL29_20_VFD:O.DynamicDecelTime"
+
+[node name="UL29_20_DISC" parent="." unique_id=1080337124 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 71.170616, -0.06, 15.229932)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL29_20_DISC_OIP"
+
+[node name="UL29_21_VFD" parent="." unique_id=1632528308 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 70.20861, 0, 13.923575)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_80o66")])
+speed = 0.43383200000000727
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL29_21_VFD_APF" parent="." unique_id=369286490 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 71.170616, -0.5, 13.323575)
+name_text = "UL29_21"
+design_fpm = 420
+auto_trip_interval_minutes = 15.0
+auto_connection_fault_interval_minutes = 13.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL29_21_DISC")])
+conveyor_path = NodePath("../UL29_21_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL29_21_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL29_21_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL29_21_VFD:I.DisconnectClosed"
+fault_tag_name = "UL29_21_VFD:I.Fault"
+running_tag_name = "UL29_21_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL29_21_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL29_21_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL29_21_VFD:I.OutputVoltage"
+velocity_tag_name = "UL29_21_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL29_21_VFD:I.TripFaultCode"
+stop_tag_name = "UL29_21_VFD:O.Stop"
+start_tag_name = "UL29_21_VFD:O.Start"
+direction_cmd_0_tag_name = "UL29_21_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL29_21_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL29_21_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL29_21_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL29_21_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL29_21_VFD:O.DynamicDecelTime"
+
+[node name="UL29_21_DISC" parent="." unique_id=641041430 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 71.170616, -0.06, 13.523575)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL29_21_DISC_OIP"
+
+[node name="UL29_22_VFD" parent="." unique_id=1751037767 instance=ExtResource("3_38ygf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 70.20861, 0, 12.234081)
+segments = Array[ExtResource("4_segscript")]([SubResource("Resource_6b8f6")])
+speed = 1.20068885e-14
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(1.7, 0.5, 1.524)
+metadata/hijack_scale = true
+
+[node name="UL29_22_VFD_APF" parent="." unique_id=81578792 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 71.170616, -0.5, 11.634081)
+name_text = "UL29_22"
+design_fpm = 420
+auto_trip_interval_minutes = 15.0
+auto_connection_fault_interval_minutes = 12.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL29_22_DISC")])
+conveyor_path = NodePath("../UL29_22_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL29_22_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL29_22_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL29_22_VFD:I.DisconnectClosed"
+fault_tag_name = "UL29_22_VFD:I.Fault"
+running_tag_name = "UL29_22_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL29_22_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL29_22_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL29_22_VFD:I.OutputVoltage"
+velocity_tag_name = "UL29_22_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL29_22_VFD:I.TripFaultCode"
+stop_tag_name = "UL29_22_VFD:O.Stop"
+start_tag_name = "UL29_22_VFD:O.Start"
+direction_cmd_0_tag_name = "UL29_22_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL29_22_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL29_22_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL29_22_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL29_22_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL29_22_VFD:O.DynamicDecelTime"
+
+[node name="UL29_22_DISC" parent="." unique_id=908464766 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 71.170616, -0.06, 11.834081)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL29_22_DISC_OIP"
+
+[node name="UL29_23_VFD" parent="." unique_id=1134684420 instance=ExtResource("1_ef28r")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 67.569214, 0, 10.588528)
+inner_radius = 1.874077
+reverse = true
+speed = 1.2984405e-15
+speed_tag_group_name = "TagGroup0"
+running_tag_group_name = "TagGroup0"
+size = Vector3(6.796154, 0.5, 6.796154)
+metadata/hijack_scale = true
+
+[node name="UL29_23_VFD_APF" parent="." unique_id=755302663 instance=ExtResource("auto_apf")]
+transform = Transform3D(0, 0, 1.5, 0, 1.5, 0, -1.5, 0, 0, 71.170616, -0.5, 11.134081)
+name_text = "UL29_23"
+design_fpm = 300
+auto_trip_interval_minutes = 13.0
+auto_connection_fault_interval_minutes = 8.0
+connection_fault_duration_seconds = 6.0
+mcm_paths = Array[NodePath]([NodePath("../MCM09")])
+aux_disconnect_paths = Array[NodePath]([NodePath("../UL29_23_DISC")])
+conveyor_path = NodePath("../UL29_23_VFD")
+enable_comms = true
+connection_faulted_tag_name = "UL29_23_VFD:I.ConnectionFaulted"
+keypad_hand_mode_tag_name = "UL29_23_VFD:I.KeypadHandMode"
+disconnect_closed_tag_name = "UL29_23_VFD:I.DisconnectClosed"
+fault_tag_name = "UL29_23_VFD:I.Fault"
+running_tag_name = "UL29_23_VFD:I.Running"
+safe_torque_enabled_tag_name = "UL29_23_VFD:I.SafeTorqueEnabled"
+output_current_tag_name = "UL29_23_VFD:I.OutputCurrent"
+output_voltage_tag_name = "UL29_23_VFD:I.OutputVoltage"
+velocity_tag_name = "UL29_23_VFD:I.Velocity"
+trip_fault_code_tag_name = "UL29_23_VFD:I.TripFaultCode"
+stop_tag_name = "UL29_23_VFD:O.Stop"
+start_tag_name = "UL29_23_VFD:O.Start"
+direction_cmd_0_tag_name = "UL29_23_VFD:O.DirectionCmd_0"
+direction_cmd_1_tag_name = "UL29_23_VFD:O.DirectionCmd_1"
+commanded_velocity_tag_name = "UL29_23_VFD:O.CommandedVelocity"
+clear_fault_tag_name = "UL29_23_VFD:O.ClearFault"
+dynamic_accel_time_tag_name = "UL29_23_VFD:O.DynamicAccelTime"
+dynamic_decel_time_tag_name = "UL29_23_VFD:O.DynamicDecelTime"
+
+[node name="UL29_23_DISC" parent="." unique_id=1182094310 instance=ExtResource("auto_aux_disconnect")]
+transform = Transform3D(0, 0, 2, 0, 2, 0, -2, 0, 0, 71.37061, -0.06, 11.134081)
+enable_comms = true
+aux_disconnect_closed_tag_name = "UL29_23_DISC_OIP"
+
+[node name="UL17_19_EPC1" parent="." unique_id=1759156458 instance=ExtResource("auto_epc")]
+transform = Transform3D(0, -2, 0, 0, 0, -2, 2, 0, 0, 12.875854, -0.58, 28.5251)
+reset_button_path = NodePath("../UL17_19_S1")
+enable_comms = true
+channel_1_tag_name = "UL17_19_EPC1_CH1_OIP"
+channel_2_tag_name = "UL17_19_EPC1_CH2_OIP"
+
+[node name="UL20_19_EPC1" parent="." unique_id=1784559332 instance=ExtResource("auto_epc")]
+transform = Transform3D(0, -2, 0, 0, 0, -2, 2, 0, 0, 26.964666, -0.58, 28.5251)
+reset_button_path = NodePath("../UL20_19_S1")
+enable_comms = true
+channel_1_tag_name = "UL20_19_EPC1_CH1_OIP"
+channel_2_tag_name = "UL20_19_EPC1_CH2_OIP"
+
+[node name="UL23_19_EPC1" parent="." unique_id=607148726 instance=ExtResource("auto_epc")]
+transform = Transform3D(0, -2, 0, 0, 0, -2, 2, 0, 0, 41.284664, -0.58, 28.5251)
+reset_button_path = NodePath("../UL23_19_S1")
+enable_comms = true
+channel_1_tag_name = "UL23_19_EPC1_CH1_OIP"
+channel_2_tag_name = "UL23_19_EPC1_CH2_OIP"
+
+[node name="UL26_19_EPC1" parent="." unique_id=1835441380 instance=ExtResource("auto_epc")]
+transform = Transform3D(0, -2, 0, 0, 0, -2, 2, 0, 0, 55.404667, -0.58, 28.5251)
+reset_button_path = NodePath("../UL26_19_S1")
+enable_comms = true
+channel_1_tag_name = "UL26_19_EPC1_CH1_OIP"
+channel_2_tag_name = "UL26_19_EPC1_CH2_OIP"
+
+[node name="UL29_19_EPC1" parent="." unique_id=1852846433 instance=ExtResource("auto_epc")]
+transform = Transform3D(0, -2, 0, 0, 0, -2, 2, 0, 0, 69.44662, -0.58, 28.445024)
+reset_button_path = NodePath("../UL29_19_S1")
+enable_comms = true
+channel_1_tag_name = "UL29_19_EPC1_CH1_OIP"
+channel_2_tag_name = "UL29_19_EPC1_CH2_OIP"
+
+[node name="UL17_19_S1" parent="." unique_id=699492421 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12.875854, -0.2, 28.5251)
+text = "Start"
+lamp = true
+button_color = Color(0.39, 1, 0.098, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL17_19_S1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL17_19_S1_LT_OIP"
+
+[node name="UL17_19_FIOM1" parent="." unique_id=2017112242 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, 0.3, 0, 0, 0, -0.3, -0.3, 0, 0, 14.399854, -0.2, 28.01094)
+auto_fault_interval_min_minutes = 13.7
+auto_fault_interval_max_minutes = 14.3
+enable_comms = true
+communication_fault_tag_name = "UL17_19_FIOM1_OIP"
+
+[node name="UL17_19_TPE1" parent="." unique_id=1694972229 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 12.668729, 0, 18.825089)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_19_TPE1_OIP"
+
+[node name="UL17_20_TPE1" parent="." unique_id=982422720 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 12.708729, 0, 17.105087)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_20_TPE1_OIP"
+
+[node name="UL17_21_TPE1" parent="." unique_id=557089033 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 12.708729, 0, 15.425088)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_21_TPE1_OIP"
+
+[node name="UL17_22_TPE1" parent="." unique_id=1056099942 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 12.707076, 0, 13.684672)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_22_TPE1_OIP"
+
+[node name="UL17_23_TPE1" parent="." unique_id=469277759 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 11.691749, 0, 12.258116)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_23_TPE1_OIP"
+
+[node name="UL17_24_LPE1" parent="." unique_id=1500109132 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 10.702923, 0.142, 11.396917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_24_LPE1_MEASUREMENT"
+output_tag_name = "UL17_24_LPE1_OIP"
+
+[node name="UL17_24_LPE2" parent="." unique_id=475685360 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(0.259808, 0, -0.15, 0, 0.3, 0, 0.15, 0, 0.259808, 12.220409, 0.142, 10.045626)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_24_LPE2_MEASUREMENT"
+output_tag_name = "UL17_24_LPE2_OIP"
+
+[node name="UL17_24_TPE1" parent="." unique_id=1405843491 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 8.902923, 0, 10.396917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL17_24_TPE1_OIP"
+
+[node name="UL17_22_JR1" parent="." unique_id=1095088451 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12.875854, -0.2, 14.629932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL17_22_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL17_22_JR1_LT_OIP"
+
+[node name="UL17_22_FIOM1" parent="." unique_id=1875759495 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, -0.3, 0, 0, 0, -0.3, 0.3, 0, 0, 12.875854, -0.2, 15.650284)
+auto_fault_interval_min_minutes = 12.9
+auto_fault_interval_max_minutes = 14.3
+enable_comms = true
+communication_fault_tag_name = "UL17_22_FIOM1_OIP"
+
+[node name="UL20_19_S1" parent="." unique_id=1797315399 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 26.964666, -0.2, 28.5251)
+text = "Start"
+lamp = true
+button_color = Color(0.39, 1, 0.098, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL20_19_S1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL20_19_S1_LT_OIP"
+
+[node name="UL20_19_FIOM1" parent="." unique_id=1488027409 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, 0.3, 0, 0, 0, -0.3, -0.3, 0, 0, 28.488667, -0.2, 27.983412)
+auto_fault_interval_min_minutes = 10.9
+auto_fault_interval_max_minutes = 11.9
+enable_comms = true
+communication_fault_tag_name = "UL20_19_FIOM1_OIP"
+
+[node name="UL20_19_TPE1" parent="." unique_id=404678383 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 26.780565, 0, 18.829132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_19_TPE1_OIP"
+
+[node name="UL20_20_TPE1" parent="." unique_id=978703006 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 26.780565, 0, 17.149132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_20_TPE1_OIP"
+
+[node name="UL20_21_TPE1" parent="." unique_id=424187031 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 26.820566, 0, 15.429132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_21_TPE1_OIP"
+
+[node name="UL20_22_TPE1" parent="." unique_id=1397535663 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 26.820566, 0, 13.709132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_22_TPE1_OIP"
+
+[node name="UL20_23_TPE1" parent="." unique_id=1519097489 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 25.73327, 0, 12.30505)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_23_TPE1_OIP"
+
+[node name="UL20_24_LPE1" parent="." unique_id=2133301295 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 25.142923, 0.142, 11.716917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_24_LPE1_MEASUREMENT"
+output_tag_name = "UL20_24_LPE1_OIP"
+
+[node name="UL20_24_LPE2" parent="." unique_id=1129490653 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(0.259808, 0, -0.15, 0, 0.3, 0, 0.15, 0, 0.259808, 25.500408, 0.142, 9.725626)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_24_LPE2_MEASUREMENT"
+output_tag_name = "UL20_24_LPE2_OIP"
+
+[node name="UL20_24_TPE1" parent="." unique_id=1520179863 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 22.912924, 0, 10.494238)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL20_24_TPE1_OIP"
+
+[node name="UL20_22_JR1" parent="." unique_id=1477237663 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 26.964666, -0.2, 14.629932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL20_22_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL20_22_JR1_LT_OIP"
+
+[node name="UL20_22_FIOM1" parent="." unique_id=1842230345 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, -0.3, 0, 0, 0, -0.3, 0.3, 0, 0, 26.964666, -0.2, 15.6)
+auto_fault_interval_min_minutes = 11.3
+auto_fault_interval_max_minutes = 12.3
+enable_comms = true
+communication_fault_tag_name = "UL20_22_FIOM1_OIP"
+
+[node name="UL23_19_S1" parent="." unique_id=1869512689 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 41.284664, -0.2, 28.5251)
+text = "Start"
+lamp = true
+button_color = Color(0.39, 1, 0.098, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL23_19_S1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL23_19_S1_LT_OIP"
+
+[node name="UL23_19_FIOM1" parent="." unique_id=816045939 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, 0.3, 0, 0, 0, -0.3, -0.3, 0, 0, 42.808666, -0.2, 27.98359)
+auto_fault_interval_min_minutes = 10.2
+auto_fault_interval_max_minutes = 12.9
+enable_comms = true
+communication_fault_tag_name = "UL23_19_FIOM1_OIP"
+
+[node name="UL23_19_TPE1" parent="." unique_id=1291097102 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 41.100567, 0, 18.869131)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_19_TPE1_OIP"
+
+[node name="UL23_20_TPE1" parent="." unique_id=2125797109 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 41.100567, 0, 17.109133)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_20_TPE1_OIP"
+
+[node name="UL23_21_TPE1" parent="." unique_id=1519406781 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 41.100567, 0, 15.389132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_21_TPE1_OIP"
+
+[node name="UL23_22_TPE1" parent="." unique_id=1773958505 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 41.100567, 0, 13.709132)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_22_TPE1_OIP"
+
+[node name="UL23_23_TPE1" parent="." unique_id=1574728163 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 40.047825, 0, 12.331927)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_23_TPE1_OIP"
+
+[node name="UL23_24_LPE1" parent="." unique_id=1010694431 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 39.542923, 0.142, 11.796917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_24_LPE1_MEASUREMENT"
+output_tag_name = "UL23_24_LPE1_OIP"
+
+[node name="UL23_24_LPE2" parent="." unique_id=1885968908 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(0.259808, 0, -0.15, 0, 0.3, 0, 0.15, 0, 0.259808, 39.980408, 0.142, 9.805626)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_24_LPE2_MEASUREMENT"
+output_tag_name = "UL23_24_LPE2_OIP"
+
+[node name="UL23_24_TPE1" parent="." unique_id=349925182 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 37.262924, 0, 10.436917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL23_24_TPE1_OIP"
+
+[node name="UL23_22_JR1" parent="." unique_id=2094917404 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 41.284664, -0.2, 14.629932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL23_22_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL23_22_JR1_LT_OIP"
+
+[node name="UL23_22_FIOM1" parent="." unique_id=2069621590 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, -0.3, 0, 0, 0, -0.3, 0.3, 0, 0, 41.284664, -0.2, 15.566237)
+auto_fault_interval_min_minutes = 10.6
+auto_fault_interval_max_minutes = 10.7
+enable_comms = true
+communication_fault_tag_name = "UL23_22_FIOM1_OIP"
+
+[node name="UL26_19_S1" parent="." unique_id=1129696314 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 55.404667, -0.2, 28.5251)
+text = "Start"
+lamp = true
+button_color = Color(0.39, 1, 0.098, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL26_19_S1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL26_19_S1_LT_OIP"
+
+[node name="UL26_19_FIOM1" parent="." unique_id=439282428 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, 0.3, 0, 0, 0, -0.3, -0.3, 0, 0, 56.928665, -0.2, 27.972178)
+auto_fault_interval_min_minutes = 10.7
+auto_fault_interval_max_minutes = 12.5
+enable_comms = true
+communication_fault_tag_name = "UL26_19_FIOM1_OIP"
+
+[node name="UL26_19_TPE1" parent="." unique_id=1672663365 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 55.198948, 0, 18.85148)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_19_TPE1_OIP"
+
+[node name="UL26_20_TPE1" parent="." unique_id=1017191047 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 55.20495, 0, 17.11748)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_20_TPE1_OIP"
+
+[node name="UL26_21_TPE1" parent="." unique_id=1173336332 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 55.20974, 0, 15.386589)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_21_TPE1_OIP"
+
+[node name="UL26_22_TPE1" parent="." unique_id=230416952 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 55.23895, 0, 13.69148)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_22_TPE1_OIP"
+
+[node name="UL26_23_TPE1" parent="." unique_id=150079067 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 54.157658, 0, 12.357088)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_23_TPE1_OIP"
+
+[node name="UL26_24_LPE1" parent="." unique_id=1741385606 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 53.14292, 0.142, 11.516917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_24_LPE1_MEASUREMENT"
+output_tag_name = "UL26_24_LPE1_OIP"
+
+[node name="UL26_24_LPE2" parent="." unique_id=30492875 instance=ExtResource("auto_laser_sensor")]
+transform = Transform3D(0.259808, 0, -0.15, 0, 0.3, 0, 0.15, 0, 0.259808, 54.70041, 0.142, 10.165626)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_24_LPE2_MEASUREMENT"
+output_tag_name = "UL26_24_LPE2_OIP"
+
+[node name="UL26_24_TPE1" parent="." unique_id=614492410 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.259808, 0, 0.15, 0, 0.3, 0, -0.15, 0, -0.259808, 51.382923, 0, 10.476917)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL26_24_TPE1_OIP"
+
+[node name="UL26_22_JR1" parent="." unique_id=754466006 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 55.404667, -0.2, 14.629932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL26_22_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL26_22_JR1_LT_OIP"
+
+[node name="UL26_22_FIOM1" parent="." unique_id=2074394913 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, -0.3, 0, 0, 0, -0.3, 0.3, 0, 0, 55.404667, -0.2, 15.6)
+auto_fault_interval_min_minutes = 10.9
+auto_fault_interval_max_minutes = 11.3
+enable_comms = true
+communication_fault_tag_name = "UL26_22_FIOM1_OIP"
+
+[node name="UL29_19_S1" parent="." unique_id=85982148 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 69.44662, -0.2, 28.445024)
+text = "Start"
+lamp = true
+button_color = Color(0.39, 1, 0.098, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL29_19_S1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL29_19_S1_LT_OIP"
+
+[node name="UL29_19_FIOM1" parent="." unique_id=1176978170 instance=ExtResource("auto_fio")]
+transform = Transform3D(0, 0.3, 0, 0, 0, -0.3, -0.3, 0, 0, 70.97061, -0.2, 27.98317)
+auto_fault_interval_min_minutes = 10.7
+auto_fault_interval_max_minutes = 13.3
+enable_comms = true
+communication_fault_tag_name = "UL29_19_FIOM1_OIP"
+
+[node name="UL29_19_TPE1" parent="." unique_id=1002402287 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 69.228645, 0, 15.838485)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL29_19_TPE1_OIP"
+
+[node name="UL29_20_TPE1" parent="." unique_id=1567419704 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 69.25919, 0, 14.142114)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL29_20_TPE1_OIP"
+
+[node name="UL29_21_TPE1" parent="." unique_id=611008 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 69.24718, 0, 12.480576)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL29_21_TPE1_OIP"
+
+[node name="UL29_22_TPE1" parent="." unique_id=20092574 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0, 0, 0.3, 0, 0.3, 0, -0.3, 0, 0, 69.26392, 0, 10.810809)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL29_22_TPE1_OIP"
+
+[node name="UL29_22_JR1" parent="." unique_id=487678035 instance=ExtResource("auto_button")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 69.44662, -0.2, 11.86384)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "UL29_22_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "UL29_22_JR1_LT_OIP"
+
+[node name="UL29_23_TPE1" parent="." unique_id=1824541820 instance=ExtResource("auto_sensor")]
+transform = Transform3D(-0.29999998, 0, -2.6226832e-08, 0, 0.29999998, 0, 2.6226832e-08, 0, -0.29999998, 67.3708, 0, 8.864443)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "UL29_23_TPE1_OIP"
+
+[node name="NCP1_1_JR1" parent="." unique_id=694002973 instance=ExtResource("auto_button")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 50.495544, -0.2, 7.187932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "NCP1_1_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "NCP1_1_JR1_LT_OIP"
+
+[node name="NCP1_1_TPE1" parent="." unique_id=268175089 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 52.347466, 0, 7.023832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_1_TPE1_OIP"
+
+[node name="NCP1_1_TPE2" parent="." unique_id=2146961264 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 48.767467, 0, 6.963832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_1_TPE2_OIP"
+
+[node name="NCP1_1_TPE3" parent="." unique_id=606465779 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 46.772396, 0, 6.910064)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_1_TPE3_OIP"
+
+[node name="NCP1_2_FIOM1" parent="." unique_id=1822793022 instance=ExtResource("auto_fio")]
+transform = Transform3D(-0.3, 0, 0, 0, 0, -0.3, 0, -0.3, 0, 44.4, -0.2, 7.187932)
+auto_fault_interval_min_minutes = 12.7
+auto_fault_interval_max_minutes = 13.1
+enable_comms = true
+communication_fault_tag_name = "NCP1_2_FIOM1_OIP"
+
+[node name="NCP1_2_JR1" parent="." unique_id=73786636 instance=ExtResource("auto_button")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 36.494255, -0.2, 7.187932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "NCP1_2_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "NCP1_2_JR1_LT_OIP"
+
+[node name="NCP1_2_TPE1" parent="." unique_id=483014660 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 38.207466, 0, 7.003832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_2_TPE1_OIP"
+
+[node name="NCP1_2_TPE2" parent="." unique_id=648205337 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 34.567467, 0, 7.003832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_2_TPE2_OIP"
+
+[node name="NCP1_2_TPE3" parent="." unique_id=1631207890 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 25.71538, 0, 6.99413)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_2_TPE3_OIP"
+
+[node name="NCP1_3_JR1" parent="." unique_id=572512359 instance=ExtResource("auto_button")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 22.41467, -0.2, 7.187932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "NCP1_3_JR1_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "NCP1_3_JR1_LT_OIP"
+
+[node name="NCP1_3_JR2" parent="." unique_id=478442652 instance=ExtResource("auto_button")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8.473738, -0.2, 7.187932)
+text = "Jam Reset"
+button_color = Color(1, 1, 1, 1)
+enable_comms = true
+pushbutton_tag_group_name = "TagGroup0"
+pushbutton_tag_name = "NCP1_3_JR2_PB_OIP"
+lamp_tag_group_name = "TagGroup0"
+lamp_tag_name = "NCP1_3_JR2_LT_OIP"
+
+[node name="NCP1_3_FIOM1" parent="." unique_id=1571924182 instance=ExtResource("auto_fio")]
+transform = Transform3D(-0.3, 0, 0, 0, 0, -0.3, 0, -0.3, 0, 16.8, -0.2, 7.187932)
+auto_fault_interval_min_minutes = 11.6
+auto_fault_interval_max_minutes = 12.3
+enable_comms = true
+communication_fault_tag_name = "NCP1_3_FIOM1_OIP"
+
+[node name="NCP1_3_TPE1" parent="." unique_id=2052239463 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 23.807467, 0, 7.003832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_3_TPE1_OIP"
+
+[node name="NCP1_3_TPE2" parent="." unique_id=510999323 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 20.307467, 0, 6.983832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_3_TPE2_OIP"
+
+[node name="NCP1_3_TPE3" parent="." unique_id=229867384 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 9.887466, 0, 7.003832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_3_TPE3_OIP"
+
+[node name="NCP1_3_TPE4" parent="." unique_id=1295961072 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 6.487466, 0, 7.003832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_3_TPE4_OIP"
+
+[node name="NCP1_3_TPE5" parent="." unique_id=1763257432 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 4.641466, 0, 6.991832)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_3_TPE5_OIP"
+
+[node name="NCP1_5_TPE1" parent="." unique_id=1311709221 instance=ExtResource("auto_sensor")]
+transform = Transform3D(0.29914367, 0, 0.022650898, 0, 0.29999998, 0, -0.022650898, 0, 0.29914367, 1.000031, 0, 6.933828)
+normally_closed = true
+enable_comms = true
+tag_group_name = "TagGroup0"
+tag_name = "NCP1_5_TPE1_OIP"
+
+[node name="PDP04_FIOH1" parent="." unique_id=1544984403 instance=ExtResource("auto_hub")]
+transform = Transform3D(0, 0, 0.2, 0.2, 0, 0, 0, 0.2, 0, 36.740177, -1, 16.131325)
+auto_fault_interval_min_minutes = 10.4
+auto_fault_interval_max_minutes = 13.3
+enable_comms = true
+communication_fault_tag_name = "PDP04_FIOH1_OIP"
+
+[node name="PDP04_FIOM1" parent="." unique_id=731060157 instance=ExtResource("auto_fio")]
+transform = Transform3D(0.3, 0, 0, 0, 0, -0.3, 0, 0.3, 0, 36.204273, -1, 16.131325)
+auto_fault_interval_min_minutes = 12.1
+auto_fault_interval_max_minutes = 12.2
+enable_comms = true
+communication_fault_tag_name = "PDP04_FIOM1_OIP"
+
+[node name="NCP1_1_DPM1" parent="." unique_id=1823020647 instance=ExtResource("auto_dpm")]
+transform = Transform3D(0.4, 0, 0, 0, 0, -0.4, 0, 0.758, 0, 45.61705, -0.2, 8.711932)
+auto_fault_interval_min_minutes = 11.6
+auto_fault_interval_max_minutes = 13.0
+enable_comms = true
+communication_fault_tag_name = "NCP1_1_DPM1_OIP"
+
+[node name="NCP1_2_DPM1" parent="." unique_id=676509435 instance=ExtResource("auto_dpm")]
+transform = Transform3D(0.4, 0, 0, 0, 0, -0.4, 0, 0.758, 0, 31.086666, -0.2, 8.711932)
+auto_fault_interval_min_minutes = 14.2
+auto_fault_interval_max_minutes = 15.0
+enable_comms = true
+communication_fault_tag_name = "NCP1_2_DPM1_OIP"
+
+[node name="NCP1_3_DPM1" parent="." unique_id=29322242 instance=ExtResource("auto_dpm")]
+transform = Transform3D(0.4, 0, 0, 0, 0, -0.4, 0, 0.758, 0, 15.978948, -0.2, 8.711932)
+auto_fault_interval_min_minutes = 10.2
+auto_fault_interval_max_minutes = 11.8
+enable_comms = true
+communication_fault_tag_name = "NCP1_3_DPM1_OIP"
+
+[node name="UL17_19_BS" parent="." unique_id=1270341295 node_paths=PackedStringArray("conveyor") instance=ExtResource("9_622nf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 13.637854, 0.25, 30.149933)
+random_size = true
+random_size_max = Vector3(0.5, 0.5, 0.5)
+boxes_per_minute = 10
+fixed_rate = false
+conveyor = NodePath("../UL17_19_VFD")
+metadata/hijack_scale = true
+
+[node name="UL20_19_BS" parent="." unique_id=1668473501 node_paths=PackedStringArray("conveyor") instance=ExtResource("9_622nf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 27.726665, 0.25, 30.149933)
+random_size = true
+random_size_max = Vector3(0.5, 0.5, 0.5)
+boxes_per_minute = 10
+fixed_rate = false
+conveyor = NodePath("../UL20_19_VFD")
+metadata/hijack_scale = true
+
+[node name="UL23_19_BS" parent="." unique_id=1899687932 node_paths=PackedStringArray("conveyor") instance=ExtResource("9_622nf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 42.046665, 0.25, 30.109932)
+random_size = true
+random_size_max = Vector3(0.5, 0.5, 0.5)
+boxes_per_minute = 10
+fixed_rate = false
+conveyor = NodePath("../UL23_19_VFD")
+metadata/hijack_scale = true
+
+[node name="UL26_19_BS" parent="." unique_id=1870257952 node_paths=PackedStringArray("conveyor") instance=ExtResource("9_622nf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 56.166664, 0.25, 30.149933)
+random_size = true
+random_size_max = Vector3(0.5, 0.5, 0.5)
+boxes_per_minute = 10
+fixed_rate = false
+conveyor = NodePath("../UL26_19_VFD")
+metadata/hijack_scale = true
+
+[node name="UL29_19_BS" parent="." unique_id=1770936707 node_paths=PackedStringArray("conveyor") instance=ExtResource("9_622nf")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 70.20861, 0.25, 30.164589)
+random_size = true
+random_size_max = Vector3(0.5, 0.5, 0.5)
+boxes_per_minute = 10
+fixed_rate = false
+conveyor = NodePath("../UL29_19_VFD")
+metadata/hijack_scale = true
+
+[node name="MCM09" parent="." unique_id=273173376 instance=ExtResource("auto_mcm")]
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 31.086666, -2, 16.069933)
+button_press_duration = 0.2
+button_hold_duration = 0.4
+enable_comms = true
+tag_prefix = "MCM09"
+start_pb_tag_name = "MCM09_Start_PB_I"
+stop_pb_tag_name = "MCM09_Stop_PB_I"
+motor_fault_reset_pb_tag_name = "MCM09_Motor_Fault_Reset_PB_I"
+jam_restart_pb_tag_name = "MCM09_Jam_Restart_PB_I"
+low_air_pressure_reset_pb_tag_name = "MCM09_Low_Air_Pressure_Reset_PB_I"
+power_branch_fault_reset_pb_tag_name = "MCM09_Power_Branch_Fault_Reset_PB_I"
+communication_fault_reset_pb_tag_name = "MCM09_Communication_Fault_Reset_PB_I"
+estop_ch1_tag_name = "MCM09_EStop_PB_CH1_I"
+estop_ch2_tag_name = "MCM09_EStop_PB_CH2_I"
+ups_fault_tag_name = "MCM09_UPS_Fault_I"
+on_ups_tag_name = "MCM09_On_UPS_I"
+ups_low_tag_name = "MCM09_UPS_Low_I"
+nat_switch_fault_tag_name = "MCM09_NAT_Switch_Fault_I"
+fire_relay_tag_name = "MCM09_Fire_Relay_I"
+start_lt_tag_name = "MCM09_Start_PB_LT_O"
+motor_fault_reset_lt_tag_name = "MCM09_Motor_Fault_Reset_PB_LT_O"
+jam_restart_lt_tag_name = "MCM09_Jam_Restart_PB_LT_O"
+low_air_pressure_reset_lt_tag_name = "MCM09_Low_Air_Pressure_Reset_PB_LT_O"
+power_branch_fault_reset_lt_tag_name = "MCM09_Power_Branch_Fault_Reset_PB_LT_O"
+communication_fault_reset_lt_tag_name = "MCM09_Communication_Fault_Reset_PB_LT_O"
+estop_actuated_lt_tag_name = "MCM09_EStop_Actuated_LT_O"
+
+[node name="PDP04" parent="." unique_id=762692392 instance=ExtResource("auto_pdp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 34.85663, 0.25, 16.069933)
+name_text = "PDP04"
+pmm_fault_interval_min_minutes = 10.2
+pmm_fault_interval_max_minutes = 13.7
+enable_comms = true
+tag_prefix = "PDP04"
+pmm_fault_tag_name = "PDP04_PHASE_MOTOR_OIP"
+cb_tag_name_1 = "PDP04_CB1_OIP"
+cb_tag_name_2 = "PDP04_CB2_OIP"
+cb_tag_name_3 = "PDP04_CB3_OIP"
+cb_tag_name_4 = "PDP04_CB4_OIP"
+cb_tag_name_5 = "PDP04_CB5_OIP"
+cb_tag_name_6 = "PDP04_CB6_OIP"
+cb_tag_name_7 = "PDP04_CB7_OIP"
+cb_tag_name_8 = "PDP04_CB8_OIP"
+cb_tag_name_9 = "PDP04_CB9_OIP"
+cb_tag_name_10 = "PDP04_CB10_OIP"
+cb_tag_name_11 = "PDP04_CB11_OIP"
+cb_tag_name_12 = "PDP04_CB12_OIP"
+cb_tag_name_13 = "PDP04_CB13_OIP"
+cb_tag_name_14 = "PDP04_CB14_OIP"
+cb_tag_name_15 = "PDP04_CB15_OIP"
+cb_tag_name_16 = "PDP04_CB16_OIP"
+cb_tag_name_17 = "PDP04_CB17_OIP"
+cb_tag_name_18 = "PDP04_CB18_OIP"
+cb_tag_name_19 = "PDP04_CB19_OIP"
+cb_tag_name_20 = "PDP04_CB20_OIP"
+cb_tag_name_21 = "PDP04_CB21_OIP"
+cb_tag_name_22 = "PDP04_CB22_OIP"
+cb_tag_name_23 = "PDP04_CB23_OIP"
+cb_tag_name_24 = "PDP04_CB24_OIP"
+cb_tag_name_25 = "PDP04_CB25_OIP"
+cb_tag_name_26 = "PDP04_CB26_OIP"
+
+[node name="UL29_22_BCN1" parent="." unique_id=746939476 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 69.44662, 0.3, 10.92238)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_kpbhe")
+"Light 1" = SubResource("Resource_yr3mw")
+tag_name = "UL29_22_BCN1_OIP"
+
+[node name="NCP1_2_BCN1" parent="." unique_id=1120799007 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 35.50704, 0.3, 7.187932)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_8jthy")
+"Light 1" = SubResource("Resource_sm5fr")
+tag_name = "NCP1_2_BCN1_OIP"
+
+[node name="NCP1_1_BCN1" parent="." unique_id=853997966 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 49.527237, 0.3, 7.187932)
+tag_group_name = "TagGroup0"
+segments = 2
+_data = SubResource("Resource_k7it1")
+"Light 2" = SubResource("Resource_76b84")
+"Light 1" = SubResource("Resource_norrl")
+tag_name = "NCP1_1_BCN1_OIP"
+
+[node name="NCP1_3_BCN2" parent="." unique_id=1202071300 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 7.528955, 0.3, 7.187932)
+tag_group_name = "TagGroup0"
+segments = 2
+_data = SubResource("Resource_p6u2n")
+"Light 2" = SubResource("Resource_1mymc")
+"Light 1" = SubResource("Resource_waaq1")
+tag_name = "NCP1_3_BCN2_OIP"
+
+[node name="NCP1_3_BCN1" parent="." unique_id=1412488517 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 21.382753, 0.3, 7.187932)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_fajtu")
+"Light 1" = SubResource("Resource_4rb2w")
+tag_name = "NCP1_3_BCN1_OIP"
+
+[node name="UL17_19_BCN2" parent="." unique_id=214511099 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 14.399854, 0.3, 23.515133)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_p0474")
+"Light 1" = SubResource("Resource_ryco0")
+tag_name = "UL17_19_BCN2_OIP"
+
+[node name="UL17_19_BCN1" parent="." unique_id=1019621685 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 12.875854, 0.3, 28.5251)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_1hg0x")
+"Light 1" = SubResource("Resource_cov76")
+tag_name = "UL17_19_BCN1_OIP"
+
+[node name="UL17_22_BCN1" parent="." unique_id=885668151 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 12.875854, 0.3, 13.645656)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_ennjy")
+"Light 1" = SubResource("Resource_ktwa0")
+tag_name = "UL17_22_BCN1_OIP"
+
+[node name="UL20_19_BCN1" parent="." unique_id=858498714 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 26.964666, 0.3, 28.5251)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_8blti")
+"Light 1" = SubResource("Resource_eydg0")
+tag_name = "UL20_19_BCN1_OIP"
+
+[node name="UL20_22_BCN1" parent="." unique_id=1884788985 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 26.964666, 0.3, 13.645656)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_e84qv")
+"Light 1" = SubResource("Resource_dmvov")
+tag_name = "UL20_22_BCN1_OIP"
+
+[node name="UL23_19_BCN1" parent="." unique_id=1211349683 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 41.284664, 0.3, 28.5251)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_fgcye")
+"Light 1" = SubResource("Resource_08jxr")
+tag_name = "UL23_19_BCN1_OIP"
+
+[node name="UL23_22_BCN1" parent="." unique_id=303587723 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 41.284664, 0.3, 13.645656)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_rkwvk")
+"Light 1" = SubResource("Resource_2xvj7")
+tag_name = "UL23_22_BCN1_OIP"
+
+[node name="UL26_19_BCN2" parent="." unique_id=1479601898 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 56.928665, 0.3, 23.715528)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_tnlxu")
+"Light 1" = SubResource("Resource_fxi61")
+tag_name = "UL26_19_BCN2_OIP"
+
+[node name="UL26_19_BCN1" parent="." unique_id=812608854 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 55.404667, 0.3, 28.5251)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_12368")
+"Light 1" = SubResource("Resource_8w6t5")
+tag_name = "UL26_19_BCN1_OIP"
+
+[node name="UL26_22_BCN1" parent="." unique_id=437302677 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 55.404667, 0.3, 13.645656)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_xngvb")
+"Light 1" = SubResource("Resource_obnf2")
+tag_name = "UL26_22_BCN1_OIP"
+
+[node name="UL29_19_BCN1" parent="." unique_id=1102195657 instance=ExtResource("auto_beacon")]
+transform = Transform3D(3, 0, 0, 0, 0.45, 0, 0, 0, 3, 69.44662, 0.3, 28.445024)
+tag_group_name = "TagGroup0"
+_data = SubResource("Resource_5ewsd")
+"Light 1" = SubResource("Resource_182py")
+tag_name = "UL29_19_BCN1_OIP"
+
+[node name="Building" parent="." unique_id=1974121484 instance=ExtResource("auto_building")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, -2, 20)
+width_sections = 8
+
+[node name="NCP1_4B_Despawner" parent="." unique_id=1317210274 instance=ExtResource("auto_despawner")]
+transform = Transform3D(-2, 0, 0, 0, 1, 0, 0, 0, -2, 1.126666, -1.5, 7.949932)
+
+[node name="Node" type="Node" parent="." unique_id=1920928560]
+script = ExtResource("auto_cosmetic_optimizer")
+cosmetic_name_substrings = PackedStringArray("_Btn", "_Bezel", "_Desc", "_Tag", "_Nut", "_Lens", "_Cap", "_Ring", "_Body", "_Guard", "_Backplate", "_Backplate_", "Lbl_", "Label", "PilotLens", "PilotBezel", "PilotCollar")
+disable_all_shadows = true
