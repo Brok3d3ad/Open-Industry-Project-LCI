@@ -61,8 +61,8 @@ const GATE_BODY_NAME: String = "GateBody"
 		_update_side_guards()
 
 @export_group("Gate")
-## Closed = gate in its natural (down) pose, collision blocks boxes.
-## Open = gate rotated up by [member gate_closed_angle].
+## Open (default) = gate in its natural pose, collision lets boxes through.
+## Closed = gate rotated by [member gate_closed_angle], collision blocks boxes.
 @export var gate_closed: bool = false:
 	set(value):
 		gate_closed = value
@@ -135,7 +135,7 @@ func _ready() -> void:
 		_syncing = true
 		size = Vector3(FIXED_LENGTH, BASE_HEIGHT + leg_extension, FIXED_WIDTH)
 		_syncing = false
-	_gate_angle = 0.0 if gate_closed else gate_closed_angle
+	_gate_angle = gate_closed_angle if gate_closed else 0.0
 	_ensure_gate_body()
 	_apply_gate()
 	_update_side_guards()
@@ -155,8 +155,8 @@ func _notification(what: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# Closed = natural pose (0 deg); open = raised by gate_closed_angle.
-	var target: float = 0.0 if gate_closed else gate_closed_angle
+	# Open (default) = natural pose (0 deg), passable; closed = rotated by gate_closed_angle, blocks.
+	var target: float = gate_closed_angle if gate_closed else 0.0
 	if not is_equal_approx(_gate_angle, target):
 		_gate_angle = move_toward(_gate_angle, target, gate_speed * delta)
 		_apply_gate()
