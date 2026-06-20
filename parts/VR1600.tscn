@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://cvr1600sorter1"]
+
+[ext_resource type="PackedScene" path="res://assets/3DModels/Equipment/varioroute_vr1600.glb" id="1_glb"]
+[ext_resource type="Script" path="res://src/Equipment/varioroute.gd" id="2_scr"]
+
+[node name="VR1600" type="Node3D"]
+script = ExtResource("2_scr")
+
+[node name="Model" parent="." instance=ExtResource("1_glb")]

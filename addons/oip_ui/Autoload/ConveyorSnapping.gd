@@ -677,6 +677,8 @@ static func _is_conveyor(node: Node) -> bool:
 		"CurvedBeltConveyor", "CurvedRollerConveyor",
 		"NonConChute",
 		"NonConChute2",
+		"VarioRoute",
+		"S7000Sorter",
 	]
 
 	return global_name in conveyor_types or node_class in conveyor_types
@@ -1119,6 +1121,21 @@ static func _calculate_curved_snap_transform(selected_conveyor: Node3D, target_c
 	return result
 
 
+## Local-space Y of the target's sideguard snap feature (its belt / deck-top surface).
+## Returns NAN when the target exposes no sideguard feature, so callers keep their
+## origin-level fallback. Reads the deck-top `by` baked into get_snap_features() — no
+## hardcode, so it tracks leg_extension / snap_height_offset automatically.
+static func _target_side_surface_y(target_conveyor: Node3D) -> float:
+	if target_conveyor == null or not target_conveyor.has_method(&"get_snap_features"):
+		return NAN
+	var features: Array = target_conveyor.call(&"get_snap_features")
+	for f: Dictionary in features:
+		match f.get(&"kind", &""):
+			&"straight_sideguard_left", &"straight_sideguard_right":
+				return (f.get(&"seg_start", Vector3.ZERO) as Vector3).y
+	return NAN
+
+
 static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
 	var sel_transform := get_selected_xform(selected_conveyor)
 	var tgt_transform := target_conveyor.global_transform
@@ -1174,6 +1191,13 @@ static func _calculate_spur_snap_transform(selected_conveyor: Node3D, target_con
 	var best_sel_world: Vector3 = sel_transform * (best_sel.pos as Vector3)
 	var side_contact := _get_closest_point_on_line_segment(best_sel_world, side_edge_start, side_edge_end)
 	var side_pos_local: Vector3 = tgt_transform.affine_inverse() * side_contact
+	# The side edges above are built at the target's ORIGIN Y (leg base). Lift the
+	# contact to the target's sideguard FEATURE Y (belt / deck-top) when the target
+	# exposes one, so the spur's belt surface lands on the target's belt surface
+	# (the working end-snap / try_snap convention) instead of dropping to the legs.
+	var surface_y := _target_side_surface_y(target_conveyor)
+	if not is_nan(surface_y):
+		side_pos_local.y = surface_y
 	var side_name: StringName = &"left_side" if dist_left < dist_right else &"right_side"
 	var side_end := {"pos": side_pos_local, "outward": side_outward, "name": side_name}
 
