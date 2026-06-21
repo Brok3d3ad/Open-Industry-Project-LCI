@@ -7,6 +7,8 @@ extends Node
 const SEARCH_RADIUS: float = 3.0
 const VISIBLE_THRESHOLD: float = 0.3
 const FACING_PRESERVED_DOT: float = 0.85
+const SENSOR_LATERAL_BAND: float = 0.2
+const SENSOR_LONGITUDINAL_GRACE: float = 0.1
 const SNAP_DISABLE_MODIFIER: Key = KEY_ALT
 const _NO_SNAP_FLOOR_LIFT: float = 2.0
 const _NO_SNAP_SURFACE_TOLERANCE: float = 0.25
@@ -529,7 +531,11 @@ func _commit() -> void:
 
 	var undo_redo := EditorInterface.get_editor_undo_redo()
 	var is_diverter := ConveyorSnapping._is_diverter(_selected)
-	var action_name := "Snap Diverter" if is_diverter else "Snap Conveyor"
+	var action_name := "Snap Conveyor"
+	if ConveyorSnapping._is_sensor(_selected):
+		action_name = "Snap Sensor to Side Guard"
+	elif is_diverter:
+		action_name = "Snap Diverter"
 	_committing = true
 	undo_redo.create_action(action_name)
 	if not skip_guards:
@@ -538,6 +544,13 @@ func _commit() -> void:
 	if has_reverse_flip:
 		undo_redo.add_do_property(_selected, reverse_prop, bool(_selected.get(reverse_prop)))
 		undo_redo.add_undo_property(_selected, reverse_prop, bool(_pre_snap_reverse))
+	var overrides: Dictionary = snap_result.get("property_overrides", {})
+	for prop: String in overrides:
+		var current: Variant = _selected.get(prop)
+		if current is float and is_equal_approx(float(current), float(overrides[prop])):
+			continue
+		undo_redo.add_do_property(_selected, prop, overrides[prop])
+		undo_redo.add_undo_property(_selected, prop, current)
 	undo_redo.commit_action()
 	_committing = false
 
@@ -560,6 +573,7 @@ static func _is_snappable(node: Node3D) -> bool:
 		ConveyorSnapping._is_diverter(node)
 		or ConveyorSnapping._is_blade_stop(node)
 		or ConveyorSnapping._is_chain_transfer(node)
+		or ConveyorSnapping._is_sensor(node)
 		or ConveyorSnapping._is_conveyor(node)
 	)
 
@@ -593,6 +607,7 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 	var sel_features: Array = _cache_sel_features
 	var sel_is_curved: bool = ConveyorSnapping._is_curved_conveyor(selected)
 	var sel_has_spur: bool = ConveyorSnapping._has_spur_angles(selected)
+	var sel_is_sensor: bool = ConveyorSnapping._is_sensor(selected)
 
 	var sel_reach: float = 0.0
 	if &"local_bbox" in selected:
@@ -617,13 +632,17 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 			continue
 		var override_threshold: bool = (
 			not on_top_attachment
+			and not sel_is_sensor
 			and _selected_body_overlaps_target(intent, selected, entry)
 		)
 		if best_is_override and not override_threshold:
 			continue
 		ConveyorSnapping.target_xform_override = entry.xform
 		var result: Dictionary
-		if sel_is_curved or entry.is_curved:
+		if sel_is_sensor:
+			result = ConveyorSnapFeatures.try_snap(
+					selected, tgt, true, sel_features, _ensure_entry_features(entry))
+		elif sel_is_curved or entry.is_curved:
 			result = _select_curved_snap(intent, _ensure_entry_curved_pairs(entry, selected))
 		elif sel_has_spur:
 			result = ConveyorSnapping._calculate_spur_snap_transform(selected, tgt, true)
@@ -634,21 +653,25 @@ func _find_snap(selected: Node3D, intent: Transform3D) -> Dictionary:
 					selected, tgt, true, sel_features, _ensure_entry_features(entry))
 		if result.is_empty():
 			continue
-		var threshold: float = result.get("visible_threshold", VISIBLE_THRESHOLD)
 		var snap_xform: Transform3D = result.transform
 		var alignment: float = intent.basis.x.normalized().dot(snap_xform.basis.x.normalized())
 		var rotation_penalty: float = (1.0 - alignment) * 2.0
-		var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
 		var rank_dist: float = intent.origin.distance_to(snap_xform.origin)
-		var gate_dist: float
-		if override_threshold:
-			gate_dist = rank_dist
+		if sel_is_sensor:
+			if not _sensor_over_side_guard(result, intent, entry.xform):
+				continue
 		else:
-			gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
-		if not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
-			continue
-		if not override_threshold and gate_dist > threshold:
-			continue
+			var threshold: float = result.get("visible_threshold", VISIBLE_THRESHOLD)
+			var preserves_facing: bool = alignment >= FACING_PRESERVED_DOT
+			var gate_dist: float
+			if override_threshold:
+				gate_dist = rank_dist
+			else:
+				gate_dist = _snap_interface_xz_distance(result, selected, intent, tgt, entry.xform)
+			if not preserves_facing and gate_dist > VISIBLE_THRESHOLD:
+				continue
+			if not override_threshold and gate_dist > threshold:
+				continue
 		var dist: float = rank_dist + rotation_penalty
 		if override_threshold and not best_is_override:
 			best_is_override = true
@@ -877,6 +900,17 @@ static func _snap_interface_xz_distance(result: Dictionary, selected: Node3D, in
 
 static func _xz_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+static func _sensor_over_side_guard(result: Dictionary, intent: Transform3D, tgt_xform: Transform3D) -> bool:
+	var tgt_end: Dictionary = result.get("target_end", {})
+	if not tgt_end.has("pos"):
+		return false
+	var origin_local: Vector3 = tgt_xform.affine_inverse() * intent.origin
+	var contact_local: Vector3 = tgt_end["pos"]
+	var lateral: float = absf(origin_local.z - contact_local.z)
+	var overshoot: float = absf(origin_local.x - contact_local.x)
+	return lateral <= SENSOR_LATERAL_BAND and overshoot <= SENSOR_LONGITUDINAL_GRACE
 
 
 static func _detect_floor_below(node: Node3D, origin: Vector3, exclude_rids: Array = []) -> Plane:

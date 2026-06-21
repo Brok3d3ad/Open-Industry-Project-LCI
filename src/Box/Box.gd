@@ -87,7 +87,22 @@ func selected() -> void:
 
 
 func use() -> void:
+	if EditorInterface.is_transforming():
+		EditorInterface.keep_transform_freeze()
+		_rigid_body_3d.freeze = true
+		return
 	_rigid_body_3d.freeze = not _rigid_body_3d.freeze
+
+
+func _inspector_transform_committed() -> void:
+	if _rigid_body_3d.freeze or not Simulation.is_running():
+		return
+	var target := global_transform
+	PhysicsServer3D.body_set_state(_rigid_body_3d.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, target)
+	_rigid_body_3d.global_transform = target
+	_rigid_body_3d.linear_velocity = Vector3.ZERO
+	_rigid_body_3d.angular_velocity = Vector3.ZERO
+	_rigid_body_3d.reset_physics_interpolation()
 
 
 func _on_size_changed() -> void:

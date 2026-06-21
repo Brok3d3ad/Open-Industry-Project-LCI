@@ -95,7 +95,7 @@ static func snap_selected_conveyors() -> void:
 		return
 	
 	for node in selection.get_selected_nodes():
-		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node)) and node != target_conveyor:
+		if (_is_conveyor(node) or _is_diverter(node) or _is_chain_transfer(node) or _is_blade_stop(node) or _is_sensor(node)) and node != target_conveyor:
 			selected_conveyors.append(node as Node3D)
 
 	if selected_conveyors.is_empty():
@@ -115,6 +115,7 @@ static func snap_selected_conveyors() -> void:
 	var has_diverter := false
 	var has_chain_transfer := false
 	var has_blade_stop := false
+	var has_sensor := false
 
 	for conveyor in selected_conveyors:
 		if _is_curved_conveyor(conveyor) or _is_curved_conveyor(target_conveyor):
@@ -127,12 +128,16 @@ static func snap_selected_conveyors() -> void:
 			has_chain_transfer = true
 		if _is_blade_stop(conveyor):
 			has_blade_stop = true
+		if _is_sensor(conveyor):
+			has_sensor = true
 
 	var action_name: String
 	if has_blade_stop:
 		action_name = "Snap Blade Stop Between Rollers"
 	elif has_chain_transfer:
 		action_name = "Snap Chain Transfer Between Rollers"
+	elif has_sensor:
+		action_name = "Snap Sensor to Side Guard"
 	elif has_diverter:
 		action_name = "Snap Diverter with Side Guard Openings" if has_side_guards else "Snap Diverter"
 	elif has_curved and has_side_guards:
@@ -149,6 +154,8 @@ static func snap_selected_conveyors() -> void:
 	for conveyor in selected_conveyors:
 		var original_transform := conveyor.global_transform
 		var snap_result := _calculate_snap_transform(conveyor, target_conveyor)
+		if snap_result.is_empty():
+			continue
 		var snap_transform: Transform3D = snap_result.transform
 		undo_redo.add_do_property(conveyor, "global_transform", snap_transform)
 		undo_redo.add_undo_property(conveyor, "global_transform", original_transform)
@@ -159,6 +166,11 @@ static func snap_selected_conveyors() -> void:
 				var current_reverse: bool = bool(conveyor.get(reverse_prop))
 				undo_redo.add_do_property(conveyor, reverse_prop, not current_reverse)
 				undo_redo.add_undo_property(conveyor, reverse_prop, current_reverse)
+
+		var overrides: Dictionary = snap_result.get("property_overrides", {})
+		for prop: String in overrides:
+			undo_redo.add_do_property(conveyor, prop, overrides[prop])
+			undo_redo.add_undo_property(conveyor, prop, conveyor.get(prop))
 
 	undo_redo.commit_action()
 
@@ -454,6 +466,8 @@ static func _candidates_near(node: Node3D, grow: float) -> Array[Node3D]:
 ## dragged out of contact can still ping the neighbor it left.
 static var _contact_neighbors: Dictionary = {}
 
+static var _leg_overlap_neighbors: Dictionary = {}
+
 
 ## Ping every port-node near [param mover] — plus those it was near last call — to re-derive
 ## from current contact.
@@ -462,30 +476,74 @@ static func notify_contacts_rebuild(mover: Node3D) -> void:
 	# Re-place the mover before pinging, so its new cell is live for neighbors deriving this
 	# frame — what keeps multi-move frames stale-free.
 	grid_update(mover)
-	var prev: Array = _contact_neighbors.get(id, [])
-	var current: Array[Node3D] = []
+	var near: Array[Node3D] = []
+	var crossers: Array[Node3D] = []
 	# is_inside_tree() avoids the error get_tree() logs when the mover is out of tree.
 	if mover.is_inside_tree():
-		current = _find_near_port_nodes(mover)
-	var seen: Dictionary = {}
+		var candidates: Array[Node3D] = _candidates_near(mover, 0.3)
+		var m_aabb: AABB = _world_aabb(mover).grow(0.3)
+		near = _find_near_port_nodes(mover, m_aabb, candidates)
+		crossers = _xz_overlapping_conveyors(mover, m_aabb, candidates)
+	_ping_changed_neighbors(_contact_neighbors, id, near, _ping_rebuild)
+	_ping_changed_neighbors(_leg_overlap_neighbors, id, crossers, _queue_leg_recheck)
+
+
+static func _ping_changed_neighbors(store: Dictionary, id: int, current: Array[Node3D], ping: Callable) -> void:
+	var prev: Array = store.get(id, [])
 	for n: Node3D in current:
-		seen[n.get_instance_id()] = true
-		_ping_rebuild(n)
+		ping.call(n)
 	for n: Variant in prev:
-		if n is Node3D and is_instance_valid(n) and not seen.has((n as Node3D).get_instance_id()):
-			_ping_rebuild(n)
+		if is_instance_valid(n) and n is Node3D and not current.has(n):
+			ping.call(n)
 	if current.is_empty():
-		_contact_neighbors.erase(id)
+		store.erase(id)
 	else:
-		_contact_neighbors[id] = current
+		store[id] = current
 
 
-static func _find_near_port_nodes(mover: Node3D) -> Array[Node3D]:
+static var _pending_leg_rechecks: Dictionary = {}
+static var _leg_recheck_flush_queued: bool = false
+
+
+func _queue_leg_recheck(n: Node3D) -> void:
+	if not is_instance_valid(n) or not n.is_inside_tree() or n.is_queued_for_deletion():
+		return
+	_pending_leg_rechecks[n.get_instance_id()] = n
+	if _leg_recheck_flush_queued:
+		return
+	_leg_recheck_flush_queued = true
+	get_tree().physics_frame.connect(_flush_leg_rechecks, CONNECT_ONE_SHOT)
+
+
+func _flush_leg_rechecks() -> void:
+	_leg_recheck_flush_queued = false
+	var pending: Dictionary = _pending_leg_rechecks
+	_pending_leg_rechecks = {}
+	for n: Variant in pending.values():
+		if is_instance_valid(n) and n is Node3D and (n as Node3D).is_inside_tree() \
+				and not (n as Node3D).is_queued_for_deletion():
+			(n as Node3D).call(&"_request_legs_recheck")
+
+
+static func _xz_overlapping_conveyors(mover: Node3D, m_aabb: AABB, candidates: Array[Node3D]) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for other: Node3D in candidates:
+		if other == mover or not is_instance_valid(other) or not other.is_inside_tree():
+			continue
+		if not other.has_method(&"_request_legs_recheck"):
+			continue
+		var o: AABB = _world_aabb(other)
+		if m_aabb.position.x < o.end.x and m_aabb.end.x > o.position.x \
+				and m_aabb.position.z < o.end.z and m_aabb.end.z > o.position.z:
+			result.append(other)
+	return result
+
+
+static func _find_near_port_nodes(mover: Node3D, m_aabb: AABB, candidates: Array[Node3D]) -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	# Bounding-box overlap, not center distance: a long thin belt's far (discharge)
 	# end is nowhere near its center, so a radius test would miss neighbors there.
-	var m_aabb: AABB = _world_aabb(mover).grow(0.3)
-	for other: Node3D in _candidates_near(mover, 0.3):
+	for other: Node3D in candidates:
 		if other == mover or not is_instance_valid(other) or not other.is_inside_tree():
 			continue
 		if m_aabb.intersects(_world_aabb(other)):
@@ -677,6 +735,7 @@ static func _is_conveyor(node: Node) -> bool:
 		"CurvedBeltConveyor", "CurvedRollerConveyor",
 		"NonConChute",
 		"NonConChute2",
+		"TurntableConveyor",
 	]
 
 	return global_name in conveyor_types or node_class in conveyor_types
@@ -693,6 +752,10 @@ static func _make_snap_result(snap_transform: Transform3D, snapped_end: Dictiona
 
 
 static func _calculate_snap_transform(selected_conveyor: Node3D, target_conveyor: Node3D, live_mode: bool = false) -> Dictionary:
+	# Sensors snap to a side-guard segment regardless of the target's curvature/spur.
+	if _is_sensor(selected_conveyor):
+		return ConveyorSnapFeatures.try_snap(selected_conveyor, target_conveyor, live_mode)
+
 	if _is_curved_conveyor(selected_conveyor) or _is_curved_conveyor(target_conveyor):
 		return _calculate_curved_snap_transform(selected_conveyor, target_conveyor, live_mode)
 
@@ -941,6 +1004,9 @@ static func _get_spur_end_info(conveyor: Node3D) -> Array[Dictionary]:
 
 
 static func _get_end_info(conveyor: Node3D) -> Array[Dictionary]:
+	if _is_sensor(conveyor):
+		var no_ends: Array[Dictionary] = []
+		return no_ends
 	if not live_end_info_cache.is_empty():
 		var cached: Variant = live_end_info_cache.get(conveyor.get_instance_id())
 		if cached != null:
@@ -1246,7 +1312,8 @@ static func _is_straight_conveyor(conveyor: Node3D) -> bool:
 	var straight_types := [
 		"BeltConveyor", "BeltSpurConveyor",
 		"RollerConveyor",
-		"RollerSpurConveyor"
+		"RollerSpurConveyor",
+		"TurntableConveyor",
 	]
 
 	return global_name in straight_types or node_class in straight_types
@@ -1262,6 +1329,10 @@ static func _is_chain_transfer(node: Node) -> bool:
 
 static func _is_blade_stop(node: Node) -> bool:
 	return node is BladeStop
+
+
+static func _is_sensor(node: Node) -> bool:
+	return node is DiffuseSensor or node is LaserSensor or node is ColorSensor
 
 
 static func _is_roller_conveyor(node: Node) -> bool:
