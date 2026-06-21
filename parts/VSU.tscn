@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bingyt3qxmjb1"]
 
 [ext_resource type="PackedScene" uid="uid://cqmt0vsu1unit" path="res://assets/3DModels/Equipment/vsu.glb" id="1_vsu"]
-[ext_resource type="Script" uid="uid://bjhlp7hjpih3o" path="res://src/Equipment/vsu.gd" id="2_vsuscr"]
+[ext_resource type="Script" uid="uid://df4d4ifte45q5" path="res://src/Equipment/vsu.gd" id="2_vsuscr"]
 
 [node name="VSU" type="Node3D" unique_id=973761555]
 script = ExtResource("2_vsuscr")
