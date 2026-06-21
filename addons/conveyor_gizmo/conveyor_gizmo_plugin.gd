@@ -33,6 +33,8 @@ func _has_gizmo(node):
 		"res://src/FloorMarking/floor_marking.gd",
 		"res://src/Chute/noncon_chute.gd",
 		"res://src/Chute/noncon_chute_2.gd",
+		"res://src/Equipment/varioroute.gd",
+		"res://src/Equipment/s7000_sorter.gd",
 	]
 
 	return script_path in valid_scripts
