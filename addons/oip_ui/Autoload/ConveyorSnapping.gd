@@ -471,7 +471,7 @@ static var _leg_overlap_neighbors: Dictionary = {}
 
 ## Ping every port-node near [param mover] — plus those it was near last call — to re-derive
 ## from current contact.
-static func notify_contacts_rebuild(mover: Node3D) -> void:
+func notify_contacts_rebuild(mover: Node3D) -> void:
 	var id: int = mover.get_instance_id()
 	# Re-place the mover before pinging, so its new cell is live for neighbors deriving this
 	# frame — what keeps multi-move frames stale-free.
