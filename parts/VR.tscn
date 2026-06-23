@@ -1,0 +1,14 @@
+[gd_scene format=4]
+
+[ext_resource type="Script" path="res://src/VR/vr.gd" id="1_vr"]
+[ext_resource type="Script" path="res://src/Conveyor/belt_segment.gd" id="2_seg"]
+
+[sub_resource type="Resource" id="Resource_vrseg"]
+resource_local_to_scene = true
+script = ExtResource("2_seg")
+length = 0.9144
+
+[node name="VR" type="Node3D" unique_id=100200300]
+script = ExtResource("1_vr")
+width = 1.524
+segments = Array[ExtResource("2_seg")]([SubResource("Resource_vrseg")])

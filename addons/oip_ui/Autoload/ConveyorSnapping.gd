@@ -738,6 +738,7 @@ static func _is_conveyor(node: Node) -> bool:
 		"TurntableConveyor",
 		"VarioRoute",
 		"S7000Sorter",
+		"VR",
 	]
 
 	return global_name in conveyor_types or node_class in conveyor_types
