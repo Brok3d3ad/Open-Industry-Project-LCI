@@ -18,11 +18,21 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		roller_class = value
 		_request_rebuild()
 
+## Length of the LEFT (-Z) side along the flow axis, in meters. Together with
+## [member length_right] this sizes each long edge independently; the centerline length
+## ([code]size.x[/code]) and downstream splay ([member angle_downstream]) are derived.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
-		size = Vector3(value, size.y, size.z)
+		_set_side_lengths(value, length_right)
 	get:
-		return size.x
+		return size.x - tan(angle_downstream) * (size.z * 0.5)
+
+## Length of the RIGHT (+Z) side along the flow axis, in meters. See [member length].
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length_right: float = 2.0:
+	set(value):
+		_set_side_lengths(length, value)
+	get:
+		return size.x + tan(angle_downstream) * (size.z * 0.5)
 
 @export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
 	set(value):
@@ -300,6 +310,16 @@ func _init() -> void:
 		size = size_default
 
 
+## Map the two requested side lengths to the stored centerline length ([code]size.x[/code])
+## and the derived downstream splay ([member angle_downstream]). The head end is the
+## straight cut between the left corner (-Z) and the right corner (+Z).
+func _set_side_lengths(left: float, right: float) -> void:
+	var w: float = maxf(size.z, 0.0001)
+	var center: float = (left + right) * 0.5
+	angle_downstream = atan((right - left) / w)
+	size = Vector3(center, size.y, size.z)
+
+
 func _validate_property(property: Dictionary) -> void:
 	var prop_name: String = property["name"]
 	if prop_name == "speed":
@@ -308,7 +328,7 @@ func _validate_property(property: Dictionary) -> void:
 	if prop_name == "speed_fpm":
 		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
 		return
-	if prop_name in ["length", "width", "height"]:
+	if prop_name in ["length", "length_right", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
 	if prop_name == "size":
