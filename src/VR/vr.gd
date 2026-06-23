@@ -26,7 +26,7 @@ const BOX_COLLISION_MASK: int = 8   # boxes ride on physics layer 4 (value 8)
 const BOX_LENGTH: float = 0.3       # assumed parcel length (auto-mode fully-on gate)
 const PANEL_NATIVE: float = 0.40    # GLB panel tile is 0.40 m square (native size before scaling)
 const DECK_THICKNESS: float = 0.12  # solid deck slab depth (blue side-guard material)
-const DEBUG: bool = true            # TEMP: print VR sorting state to the output console
+const DEBUG: bool = false           # set true to print VR sorting state to the output console
 
 #region Config ---------------------------------------------------------------------
 # Fixed tuning — hardcoded, intentionally NOT exposed in the inspector.

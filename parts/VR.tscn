@@ -1,4 +1,4 @@
-[gd_scene format=4]
+[gd_scene format=4 uid="uid://dyeg5hmoctg02"]
 
 [ext_resource type="Script" path="res://src/VR/vr.gd" id="1_vr"]
 [ext_resource type="Script" path="res://src/Conveyor/belt_segment.gd" id="2_seg"]
