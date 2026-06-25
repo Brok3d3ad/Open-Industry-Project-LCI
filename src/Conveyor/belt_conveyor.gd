@@ -58,10 +58,18 @@ const _PRESET_WALK_THRU_LEG_KEEP: float = 1.0
 ## Length of the only segment, when this conveyor has exactly one segment.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = _DEFAULT_SEGMENT_LENGTH:
 	get:
-		return segments[0].length if segments.size() > 0 else 0.0
+		return segments[0].length + height if segments.size() > 0 else 0.0
 	set(value):
 		if segments.size() > 0:
-			segments[0].length = maxf(_MIN_RUN_LENGTH, value)
+			segments[0].length = maxf(_MIN_RUN_LENGTH, value - height)
+
+## Incline of the only segment, in degrees, when this conveyor has exactly one segment.
+@export_range(-89.0, 89.0, 0.1, "suffix:°") var incline: float = 0.0:
+	get:
+		return segments[0].tilt_relative_deg if segments.size() > 0 else 0.0
+	set(value):
+		if segments.size() > 0:
+			segments[0].tilt_relative_deg = value
 
 
 static func _make_default_segment() -> BeltSegment:
@@ -180,6 +188,15 @@ var local_bbox: AABB:
 
 func _get_constrained_size(_new_size: Vector3) -> Vector3:
 	return local_bbox.size
+
+
+func _get_editor_rotation_lock() -> int:
+	return (1 << 0) | (1 << 2)
+
+
+func _get_editor_gizmo_pivot_offset() -> Vector3:
+	var bb := local_bbox
+	return Vector3(bb.position.x + bb.size.x * 0.5, 0.0, 0.0)
 
 
 func _get_active_resize_handle_ids() -> PackedInt32Array:
@@ -505,7 +522,7 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
 		return
-	if property.name == "length":
+	if property.name == "length" or property.name == "incline":
 		property.usage = PROPERTY_USAGE_EDITOR if shape_preset == ShapePreset.STRAIGHT else PROPERTY_USAGE_NONE
 	elif property.name == "segments":
 		property.usage = PROPERTY_USAGE_DEFAULT if shape_preset != ShapePreset.STRAIGHT else PROPERTY_USAGE_STORAGE
@@ -539,30 +556,51 @@ func get_snap_features() -> Array:
 		"end_name": &"front",
 	})
 	var half_w: float = width * 0.5
+	var first_start_x: float = _path.runs[0].start_xform.origin.x
+	var last_run: BeltPath.Run = _path.runs[_path.runs.size() - 1]
+	var x_end: float = (last_run.start_xform * Vector3(maxf(0.0, last_run.effective_length), 0, 0)).x
+	features.append({
+		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
+		"kind": &"straight_sideguard_left",
+		"seg_start": Vector3(first_start_x, 0.0, -half_w),
+		"seg_end": Vector3(x_end, 0.0, -half_w),
+		"seg_outward_local": Vector3(0, 0, -1),
+	})
+	features.append({
+		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
+		"kind": &"straight_sideguard_right",
+		"seg_start": Vector3(first_start_x, 0.0, half_w),
+		"seg_end": Vector3(x_end, 0.0, half_w),
+		"seg_outward_local": Vector3(0, 0, 1),
+	})
+	return features
+
+
+func snap_surface_y(local_x: float) -> float:
+	if _path == null:
+		_path = BeltPath.build(segments, 0.0, 0.0, 0.0, height)
+	if _path == null or _path.runs.is_empty():
+		return 0.0
+	var pts: Array[Vector2] = []
 	for run: BeltPath.Run in _path.runs:
 		var run_len: float = maxf(0.0, run.effective_length)
 		if run_len <= 0.0:
 			continue
-		var run_start: Vector3 = run.start_xform.origin
-		var run_end: Vector3 = run.start_xform * Vector3(run_len, 0, 0)
-		var z_axis: Vector3 = run.start_xform.basis.z
-		var left: Vector3 = z_axis * (-half_w)
-		var right: Vector3 = z_axis * half_w
-		features.append({
-			"shape": ConveyorSnapFeatures.Shape.SEGMENT,
-			"kind": &"straight_sideguard_left",
-			"seg_start": run_start + left,
-			"seg_end": run_end + left,
-			"seg_outward_local": Vector3(0, 0, -1),
-		})
-		features.append({
-			"shape": ConveyorSnapFeatures.Shape.SEGMENT,
-			"kind": &"straight_sideguard_right",
-			"seg_start": run_start + right,
-			"seg_end": run_end + right,
-			"seg_outward_local": Vector3(0, 0, 1),
-		})
-	return features
+		var s: Vector3 = run.start_xform.origin
+		var e: Vector3 = run.start_xform * Vector3(run_len, 0, 0)
+		pts.append(Vector2(s.x, s.y))
+		pts.append(Vector2(e.x, e.y))
+	if pts.is_empty():
+		return 0.0
+	if local_x <= pts[0].x:
+		return pts[0].y
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		if local_x >= a.x and local_x <= b.x:
+			var t: float = 0.0 if is_equal_approx(b.x, a.x) else (local_x - a.x) / (b.x - a.x)
+			return a.y + t * (b.y - a.y)
+	return pts[pts.size() - 1].y
 
 
 # Drag-from-FileSystem preview. GEN_EDIT_STATE_INSTANCE reuses a holder whose
@@ -971,7 +1009,8 @@ func _path_or_build() -> BeltPath:
 ## Total top-surface arc length including bend (joint) arcs.
 func total_arc_length() -> float:
 	var p: BeltPath = _path_or_build()
-	return p.top_surface_length if p != null else _segments_total_length()
+	var top: float = p.top_surface_length if p != null else _segments_total_length()
+	return top + height
 
 
 ## Arc bounds for side guards / openings, including pulley wraps.
