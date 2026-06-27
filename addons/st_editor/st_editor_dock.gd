@@ -93,16 +93,18 @@ func _on_text_changed() -> void:
 func _on_apply() -> void:
 	if _scene_root != null:
 		_scene_root.set_meta(PROGRAM_META, _code.text)
-	if Engine.has_singleton("OIPComms"):
-		OIPComms.set_soft_plc_program(GROUP, _code.text)
-	_set_status("Applied to running sim", Color(0.5, 0.8, 0.55))
+	if Engine.has_singleton("OIPComms") and OIPComms.has_method("set_soft_plc_program"):
+		OIPComms.call("set_soft_plc_program", GROUP, _code.text)
+		_set_status("Applied to running sim", Color(0.5, 0.8, 0.55))
+	else:
+		_set_status("Saved to scene · no soft_plc backend", Color(0.85, 0.7, 0.4))
 
 
 func _on_check() -> void:
-	if not Engine.has_singleton("OIPComms"):
-		_set_status("OIPComms unavailable", Color(0.9, 0.6, 0.3))
+	if not Engine.has_singleton("OIPComms") or not OIPComms.has_method("compile_soft_plc"):
+		_set_status("soft_plc backend unavailable", Color(0.9, 0.6, 0.3))
 		return
-	var err := String(OIPComms.compile_soft_plc(GROUP, _code.text))
+	var err := String(OIPComms.call("compile_soft_plc", GROUP, _code.text))
 	if err.is_empty():
 		_set_status("✓ compiles", Color(0.5, 0.8, 0.55))
 	else:
@@ -114,8 +116,8 @@ func _on_visibility_changed() -> void:
 	if vis == _watching:
 		return
 	_watching = vis
-	if Engine.has_singleton("OIPComms"):
-		OIPComms.set_soft_plc_watch_enabled(GROUP, vis)
+	if Engine.has_singleton("OIPComms") and OIPComms.has_method("set_soft_plc_watch_enabled"):
+		OIPComms.call("set_soft_plc_watch_enabled", GROUP, vis)
 	set_process(vis)
 	if not vis:
 		_overlay.call("set_values", {})
@@ -130,8 +132,8 @@ func _process(dt: float) -> void:
 	if _poll_accum < POLL_SEC:
 		return
 	_poll_accum = 0.0
-	if Engine.has_singleton("OIPComms"):
-		_overlay.call("set_values", OIPComms.get_soft_plc_watch(GROUP))
+	if Engine.has_singleton("OIPComms") and OIPComms.has_method("get_soft_plc_watch"):
+		_overlay.call("set_values", OIPComms.call("get_soft_plc_watch", GROUP))
 
 
 func _set_status(text: String, color: Color) -> void:

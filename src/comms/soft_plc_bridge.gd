@@ -35,8 +35,15 @@ func _on_tag_group_initialized(group_name: String) -> void:
 		push_warning("SoftPlcBridge: scene root '%s' has no 'oip_st_program' metadata — nothing to run" % root.name)
 		return
 	var src := String(root.get_meta("oip_st_program"))
+	# Dynamic dispatch: the soft_plc backend is not present in every OIPComms
+	# build. has_method() + call() keeps this script compilable against builds
+	# that lack set_soft_plc_program(); it activates automatically once a build
+	# that exports it is loaded.
+	if not OIPComms.has_method("set_soft_plc_program"):
+		push_warning("SoftPlcBridge: this OIPComms build has no soft_plc backend (set_soft_plc_program missing) — ST program not applied")
+		return
 	print("SoftPlcBridge: feeding ST program (%d chars) to soft_plc group '%s'" % [src.length(), group_name])
-	OIPComms.set_soft_plc_program(SOFT_PLC_GROUP, src)
+	OIPComms.call("set_soft_plc_program", SOFT_PLC_GROUP, src)
 
 
 func _scene_root() -> Node:
