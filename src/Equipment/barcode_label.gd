@@ -1,182 +1,129 @@
 class_name BarcodeLabel
 extends RefCounted
 
-## Standardized parcel label per Label_Specification_18x18: one human-readable string
-## [code]Turbo_G5XXXXX_Z[/code] plus FOUR identical 18x18 2D codes.
+## Random parcel barcode: a human-readable id such as [code]SPx3Dvkhcv_001_v[/code], rendered
+## as a 1D (linear) barcode — variable-width vertical bars, NOT a 2D / QR symbol. The id is
+## what the [ScanTunnel] reports when a parcel passes its read gate.
 ##
-## Unlike a cosmetic pattern, these codes are REALLY DECODABLE: the 5-char payload is
-## bit-encoded into the module grid with a checksum, so [method decode_grid] /
-## [method decode_image] can recover it FROM PIXELS with no prior knowledge — that is what
-## lets the CameraTunnel optically "read" a parcel it has never seen (see camera_tunnel.gd).
-##
-## Grid (18x18): col 0 + bottom row = solid finder "L"; top row + right col = timing
-## pattern; the inner 16x16 carries 32 payload bits + 8 checksum bits (row-major), the
-## rest is value-derived filler so it still looks like a dense Data-Matrix symbol.
+## Id format: [code]SP<8 random base-62 chars>_<3-digit sequence>_<check char>[/code].
+## The bar pattern is a deterministic function of the id (same id -> same bars), with quiet
+## zones and start/stop guards so it reads like a real shipping label.
 
-const VENDOR: String = "G"
-const VERSION: String = "5"
-const SUFFIX: String = "Z"
-const ALNUM: String = "abcdefghijklmnopqrstuvwxyz0123456789"  # base-36
-const MODULES: int = 18
-const N_CODES: int = 4
-const DATA_BITS: int = 32
-const CHECK_BITS: int = 8
+const PREFIX: String = "SP"
+const RAND_LEN: int = 8
+const _ALNUM62: String = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+const _CHECK_CHARS: String = "abcdefghijklmnopqrstuvwxyz0123456789"
+const _MODULE_PX: int = 3        # pixels per narrow bar/space module
+const _QUIET_MODULES: int = 10   # quiet-zone width on each side, in modules
+const _BAR_H: int = 90           # bar height in pixels
 
 
-## Returns {string, code, value}. value = base-36 of the 5 X chars (< 36^5, fits 26 bits).
-static func generate() -> Dictionary:
-	var code: String = ""
-	var value: int = 0
-	for i: int in 5:
-		var idx: int = randi() % ALNUM.length()
-		code += ALNUM[idx]
-		value = value * 36 + idx
-	var full: String = "Turbo_%s%s%s_%s" % [VENDOR, VERSION, code, SUFFIX]
-	return {"string": full, "code": code, "value": value}
+## Returns {string, code, value}: the full id, a copy, and a stable numeric hash for any
+## INT32 use downstream. [param sequence] is the per-run parcel counter (wraps 1..999).
+static func generate(sequence: int) -> Dictionary:
+	var rnd: String = ""
+	for i: int in RAND_LEN:
+		rnd += _ALNUM62[randi() % _ALNUM62.length()]
+	var seq: int = ((sequence - 1) % 999) + 1
+	var body: String = "%s%s_%03d" % [PREFIX, rnd, seq]
+	var full: String = "%s_%s" % [body, _check_char(body)]
+	return {"string": full, "code": full, "value": _hash(full)}
 
 
-## value (0..36^5-1) -> "Turbo_G5XXXXX_Z" string.
-static func value_to_string(value: int) -> String:
-	var code: String = ""
-	var v: int = value
-	for i: int in 5:
-		code = ALNUM[v % 36] + code
-		v /= 36
-	return "Turbo_%s%s%s_%s" % [VENDOR, VERSION, code, SUFFIX]
+## Number of characters in a well-formed id (e.g. SPx3Dvkhcv_001_v == 16).
+static func id_length() -> int:
+	return PREFIX.length() + RAND_LEN + 1 + 3 + 1 + 1
 
 
-static func _checksum(value: int) -> int:
-	return (value & 0xFF) ^ ((value >> 8) & 0xFF) ^ ((value >> 16) & 0xFF) ^ ((value >> 24) & 0xFF)
+## Reported when a parcel passes but no id can be decoded — present-but-unreadable label, or no
+## barcode at all: a '?' run the length of a real id (e.g. [code]????????????????[/code]).
+static func no_read_code() -> String:
+	return "?".repeat(id_length())
 
 
-## Build the 18x18 module grid (Array of 18 rows, each Array of 18 bool) encoding [param value].
-static func make_grid(value: int) -> Array:
-	var g: Array = []
-	for r: int in MODULES:
-		var row: Array = []
-		for c: int in MODULES:
-			row.append(false)
-		g.append(row)
-	# finder "L": left column + bottom row solid
-	for r: int in MODULES:
-		g[r][0] = true
-	for c: int in MODULES:
-		g[MODULES - 1][c] = true
-	# timing: top row + right column alternating
-	for c: int in MODULES:
-		g[0][c] = (c % 2 == 0)
-	for r: int in MODULES:
-		g[r][MODULES - 1] = (r % 2 == 1)
-	# payload bits (value + checksum), row-major in inner 16x16
-	var bits: Array = []
-	for i: int in DATA_BITS:
-		bits.append((value >> i) & 1)
-	var cs: int = _checksum(value)
-	for i: int in CHECK_BITS:
-		bits.append((cs >> i) & 1)
-	# filler is seeded BY THE VALUE, so every distinct parcel renders a visibly distinct
-	# symbol (not just the 40 payload modules changing). Decode only reads the payload cells.
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = value
-	var idx: int = 0
-	for r: int in range(1, MODULES - 1):
-		for c: int in range(1, MODULES - 1):
-			if idx < bits.size():
-				g[r][c] = bits[idx] == 1
-				idx += 1
-			else:
-				g[r][c] = rng.randf() < 0.5
-	return g
+## Reported when 2+ barcodes are visible on one parcel (ambiguous multi-read): a '9' run the
+## length of a real id (e.g. [code]9999999999999999[/code]).
+static func multi_read_code() -> String:
+	return "9".repeat(id_length())
 
 
-## Decode a sampled 18x18 bool grid back to the value, or -1 if the finder/checksum fails.
-static func decode_grid(g: Array) -> int:
-	if g.size() != MODULES:
-		return -1
-	for r: int in MODULES:
-		if not bool(g[r][0]):
-			return -1
-	for c: int in MODULES:
-		if not bool(g[MODULES - 1][c]):
-			return -1
-	var bits: Array = []
-	for r: int in range(1, MODULES - 1):
-		for c: int in range(1, MODULES - 1):
-			bits.append(1 if bool(g[r][c]) else 0)
-	var value: int = 0
-	for i: int in DATA_BITS:
-		value |= bits[i] << i
-	var cs: int = 0
-	for i: int in CHECK_BITS:
-		cs |= bits[DATA_BITS + i] << i
-	if cs != _checksum(value):
-		return -1
-	return value
+## Position-weighted modulo checksum -> one lowercase/digit character.
+static func _check_char(s: String) -> String:
+	var total: int = 0
+	for i: int in s.length():
+		total = (total + s.unicode_at(i) * (i + 1)) % _CHECK_CHARS.length()
+	return _CHECK_CHARS[total]
 
 
-## Sample one code from an image: [param ox],[param oy] = top-left px of the code, [param cell]
-## = px per module. Returns the decoded value or -1. (Used by the optical camera read.)
-static func decode_image(img: Image, ox: int, oy: int, cell: float) -> int:
-	if img == null:
-		return -1
-	var g: Array = []
-	var w: int = img.get_width()
-	var h: int = img.get_height()
-	for r: int in MODULES:
-		var row: Array = []
-		for c: int in MODULES:
-			var px: int = int(ox + (c + 0.5) * cell)
-			var py: int = int(oy + (r + 0.5) * cell)
-			if px < 0 or py < 0 or px >= w or py >= h:
-				return -1
-			row.append(img.get_pixel(px, py).get_luminance() < 0.5)
-		g.append(row)
-	return decode_grid(g)
+## 31-bit FNV-1a hash, for callers that want a numeric handle on the id.
+static func _hash(s: String) -> int:
+	var h: int = 2166136261
+	for i: int in s.length():
+		h = (h ^ s.unicode_at(i)) * 16777619
+		h = h & 0x7FFFFFFF
+	return h
 
 
-## Builds the label albedo: four identical decodable codes on white.
-static func make_texture(value: int) -> ImageTexture:
-	var grid: Array = make_grid(value)
-	var scale: int = 4
-	var block: int = MODULES * scale
-	var gap: int = 6
-	var margin: int = 6
-	var w: int = margin * 2 + N_CODES * block + (N_CODES - 1) * gap
-	var h: int = margin * 2 + block
-	var img: Image = Image.create(w, h, false, Image.FORMAT_RGB8)
+## Alternating bar/space run widths (modules), starting and ending on a bar.
+static func _bar_widths(code: String) -> PackedInt32Array:
+	var w: PackedInt32Array = PackedInt32Array()
+	w.append(2); w.append(1); w.append(2)                 # start guard
+	for i: int in code.length():
+		var c: int = code.unicode_at(i)
+		for k: int in 6:                                   # 6 runs per character, each 1..3
+			w.append(1 + (((c >> k) & 1) + ((c >> ((k * 2 + 1) % 8)) & 1)))
+	w.append(2); w.append(1); w.append(2)                 # stop guard
+	if w.size() % 2 == 0:
+		w.append(2)                                        # keep the strip ending on a bar
+	return w
+
+
+## Render [param code] as a 1D barcode: black bars on white (no baked text — the box spawner
+## draws the human-readable id with a Label3D beneath the strip).
+static func make_barcode_texture(code: String) -> ImageTexture:
+	var widths: PackedInt32Array = _bar_widths(code)
+	var quiet_px: int = _QUIET_MODULES * _MODULE_PX
+	var bars_px: int = 0
+	for w: int in widths:
+		bars_px += w * _MODULE_PX
+	var img_w: int = quiet_px * 2 + bars_px
+	var img: Image = Image.create(img_w, _BAR_H, false, Image.FORMAT_RGB8)
 	img.fill(Color.WHITE)
-	for b: int in N_CODES:
-		var ox: int = margin + b * (block + gap)
-		for my: int in MODULES:
-			for mx: int in MODULES:
-				if bool(grid[my][mx]):
-					for py: int in scale:
-						for px: int in scale:
-							img.set_pixel(ox + mx * scale + px, margin + my * scale + py, Color.BLACK)
+	var x: int = quiet_px
+	var dark: bool = true
+	for w: int in widths:
+		var px_w: int = w * _MODULE_PX
+		if dark:
+			for px: int in px_w:
+				for py: int in _BAR_H:
+					img.set_pixel(x + px, py, Color.BLACK)
+		x += px_w
+		dark = not dark
 	return ImageTexture.create_from_image(img)
 
 
-## A visibly DAMAGED / unreadable label: scrambled + partly torn codes with NO valid finder or
-## checksum, so decode_grid / decode_image fail — used for the rare bad parcel that must NO-READ.
-static func make_damaged_texture() -> ImageTexture:
-	var scale: int = 4
-	var block: int = MODULES * scale
-	var gap: int = 6
-	var margin: int = 6
-	var w: int = margin * 2 + N_CODES * block + (N_CODES - 1) * gap
-	var h: int = margin * 2 + block
-	var img: Image = Image.create(w, h, false, Image.FORMAT_RGB8)
-	img.fill(Color(0.92, 0.89, 0.85))   # dirty off-white sticker
+## A smudged / partly torn 1D label with random bars — no valid id, so a parcel wearing it
+## NO-READs at the tunnel (models a damaged / unreadable shipping label).
+static func make_damaged_barcode_texture() -> ImageTexture:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.randomize()
-	for b: int in N_CODES:
-		if rng.randf() < 0.35:
-			continue                        # this code torn off entirely
-		var ox: int = margin + b * (block + gap)
-		for my: int in MODULES:
-			for mx: int in MODULES:
-				if rng.randf() < 0.5:       # scrambled — no valid finder/timing/checksum survives
-					for py: int in scale:
-						for px: int in scale:
-							img.set_pixel(ox + mx * scale + px, margin + my * scale + py, Color.BLACK)
+	var quiet_px: int = _QUIET_MODULES * _MODULE_PX
+	var widths: PackedInt32Array = PackedInt32Array()
+	var bars_px: int = 0
+	for i: int in 60:
+		var ww: int = 1 + rng.randi() % 3
+		widths.append(ww)
+		bars_px += ww * _MODULE_PX
+	var img: Image = Image.create(quiet_px * 2 + bars_px, _BAR_H, false, Image.FORMAT_RGB8)
+	img.fill(Color(0.92, 0.89, 0.85))                      # dirty off-white sticker
+	var x: int = quiet_px
+	var dark: bool = true
+	for ww: int in widths:
+		var px_w: int = ww * _MODULE_PX
+		if dark and rng.randf() < 0.7:                     # random gaps = torn bars
+			for px: int in px_w:
+				for py: int in _BAR_H:
+					img.set_pixel(x + px, py, Color(0.1, 0.1, 0.1))
+		x += px_w
+		dark = not dark
 	return ImageTexture.create_from_image(img)

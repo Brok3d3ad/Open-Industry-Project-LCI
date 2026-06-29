@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://bjykatfscccwe"]
+
+[ext_resource type="PackedScene" uid="uid://bfp2v8xqkr8s4" path="res://assets/3DModels/ScanTunnel/ScanTunnel.glb" id="1_7f7c1"]
+[ext_resource type="Script" uid="uid://b2ydj4pd1x2i3" path="res://src/ScanTunnel/scan_tunnel.gd" id="2_sctun"]
+
+[node name="ScanTunnel" type="Node3D" unique_id=1373291732]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+script = ExtResource("2_sctun")
+
+[node name="ScanTunnel" parent="." unique_id=273463381 instance=ExtResource("1_7f7c1")]
+
+[node name="camEnd_lead_beam" parent="ScanTunnel" index="25" unique_id=7373863]
+transform = Transform3D(1, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0.7325865, -0.38240778, 0)
+
+[node name="camEnd_trail_beam" parent="ScanTunnel" index="29" unique_id=1861769990]
+transform = Transform3D(1, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0.76615834, -0.3789096, 0)
+
+[node name="camTop_-0_75_beam" parent="ScanTunnel" index="30" unique_id=884445494]
+transform = Transform3D(1.25, 0, 0, 0, 1, 0, 0, 0, 1.25, 0.9357414, 0, 0)
+
+[node name="camS_L_-0_75_beam" parent="ScanTunnel" index="31" unique_id=2032045687]
+transform = Transform3D(-0.026155336, -0.99488074, -0.12201608, 0.9659258, -4.222196e-08, -0.32352385, 0.25749412, -0.10105629, 1.2012262, 1.093368, 1.941644, 0.41322777)
+
+[node name="camS_R_-0_75_beam" parent="ScanTunnel" index="32" unique_id=6217448]
+transform = Transform3D(-0.026155336, -0.99488074, 0.12201608, 0.9659258, -4.222196e-08, 0.32352385, -0.25749412, 0.10105629, 1.2012262, 1.0918484, 1.941644, -0.42038321)
+
+[editable path="ScanTunnel"]

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cqmt0cam1tun1"
-path="res://.godot/imported/camera_tunnel.glb-4db1b0994f1cb8db24e1c90a49635d17.scn"
+uid="uid://bfp2v8xqkr8s4"
+path="res://.godot/imported/ScanTunnel.glb-ab4f44893f98bec8659fd87683fbeaee.scn"
 
 [deps]
 
-source_file="res://assets/3DModels/Equipment/camera_tunnel.glb"
-dest_files=["res://.godot/imported/camera_tunnel.glb-4db1b0994f1cb8db24e1c90a49635d17.scn"]
+source_file="res://assets/3DModels/ScanTunnel/ScanTunnel.glb"
+dest_files=["res://.godot/imported/ScanTunnel.glb-ab4f44893f98bec8659fd87683fbeaee.scn"]
 
 [params]
 
@@ -39,15 +39,7 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={
-"nodes": {
-"PATH:Tunnel_Body": {
-"generate/physics": true,
-"physics/physics_material_override": Object(PhysicsMaterial,"resource_local_to_scene":false,"resource_name":"","friction":0.4,"rough":false,"bounce":0.0,"absorbent":false,"script":null)
-
-}
-}
-}
-gltf/naming_version=0
+_subresources={}
+gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

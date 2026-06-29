@@ -25,14 +25,6 @@ extends ResizableNode3D
 ## Initial velocity applied to spawned boxes.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
 
-@export_subgroup("Random Size")
-## Enable random sizing for spawned boxes within min/max range.
-@export var random_size: bool = false
-## Minimum size for randomly sized boxes (X, Y, Z dimensions).
-@export var random_size_min: Vector3 = Vector3(0.4, 0.3, 0.3)
-## Maximum size for randomly sized boxes (X, Y, Z dimensions).
-@export var random_size_max: Vector3 = Vector3(0.8, 0.5, 0.5)
-
 @export_subgroup("Random Mass")
 ## Enable random mass for spawned boxes within min/max range.
 @export var random_mass: bool = false
@@ -40,6 +32,23 @@ extends ResizableNode3D
 @export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_min: float = 5.0
 ## Maximum mass for randomly massed boxes, in kilograms.
 @export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_max: float = 15.0
+
+@export_group("Box Size")
+@export_subgroup("Conveyable")
+## Enable random sizing for conveyable boxes within the min/max range below.
+@export var random_size: bool = true
+## Minimum conveyable box size — X=length, Y=height, Z=width (metres).
+@export var random_size_min: Vector3 = Vector3(0.152, 0.005, 0.101)
+## Maximum conveyable box size — X=length, Y=height, Z=width (metres).
+@export var random_size_max: Vector3 = Vector3(1.2, 0.61, 0.76)
+
+@export_subgroup("Non-Conveyable", "non_conveyable_")
+## Probability that a spawned box is oversized / non-conveyable (uses the range below).
+@export_range(0.0, 1.0, 0.01) var non_conveyable_spawn_chance: float = 0.13
+## Minimum non-conveyable box size — X=length, Y=height, Z=width (metres).
+@export var non_conveyable_random_size_min: Vector3 = Vector3(1.201, 0.611, 0.761)
+## Maximum non-conveyable box size — X=length, Y=height, Z=width (metres).
+@export var non_conveyable_random_size_max: Vector3 = Vector3(2.54, 1.067, 1.067)
 
 @export_group("Spawn Rate")
 ## Number of boxes spawned per minute (0-1000).
@@ -49,46 +58,38 @@ extends ResizableNode3D
 		boxes_per_minute = value
 
 ## When true, boxes spawn at a fixed rate. When false, spawn times vary randomly.
-@export var fixed_rate: bool = true
-## When enabled, prevents spawning when another box already occupies the target space.
-@export var prevent_box_overlap: bool = true
-## Optional conveyor reference. Spawning pauses when conveyor speed is zero.
+@export var fixed_rate: bool = false
+## Required conveyor reference — spawning pauses when its speed is zero. Must be assigned;
+## leaving it empty warns in the editor and logs an error when the simulation starts.
 @export var conveyor: Node3D = null:
 	set(value):
 		conveyor = value
 		if not value:
 			_conveyor_stopped = false
-
-@export_group("Non-Conveyable")
-## Probability that a spawned box uses the non-conveyable random size profile.
-@export_range(0.0, 1.0, 0.01) var non_conveyable_spawn_chance: float = 0.0
-## Minimum size for non-conveyable boxes (X, Y, Z dimensions).
-@export var non_conveyable_random_size_min: Vector3 = Vector3.ONE
-## Maximum size for non-conveyable boxes (X, Y, Z dimensions).
-@export var non_conveyable_random_size_max: Vector3 = Vector3.ONE
-
-@export_group("Label")
-## Prefix for the unique ID label on each spawned box. Leave empty for no label.
-@export var label_prefix: String = ""
-## Font size of the Label3D on each spawned box.
-@export var label_font_size: int = 64
+		update_configuration_warnings()
 
 @export_group("Barcode Label")
-## Apply the standardized parcel barcode (Turbo_G5XXXXX_Z + four Data Matrix codes,
-## per the Label_Specification) to every spawned box — a fresh unique code each spawn.
-## The CameraTunnel reads it; labels clear with the boxes when the simulation stops.
+## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
+## spawned box. The ScanTunnel reports the id as the parcel passes — unless the labelled face
+## is the one resting on the belt (the tunnel reads 5 sides, not the bottom). Clears on stop.
 @export var barcode_labels: bool = true
-## Fraction of parcels that get a DAMAGED / unreadable label (torn packaging, smudged code).
-## These carry NO valid code, so the camera tunnel genuinely NO-READs them — real-world
-## bad-label rate that feeds the reject / recirculation flow. Default 1%.
+## Fraction of individual LABELS that are DAMAGED / unreadable (torn, smudged). A damaged label
+## carries no code; if both of a parcel's labels are damaged it NO-READs. Default 1%.
 @export_range(0.0, 0.2, 0.005) var damaged_label_rate: float = 0.01
+## Every parcel carries two labels; this is the fraction where the two hold DIFFERENT codes
+## instead of the same one. Seeing both, the tunnel can't tell which is real — a multi-read
+## (reports '9's). Default 1%.
+@export_range(0.0, 1.0, 0.01) var multi_barcode_chance: float = 0.01
+## Fraction of parcels that get NO label at all. The tunnel finds nothing to read and NO-READs
+## them (reports '?'s). Default 1%.
+@export_range(0.0, 1.0, 0.01) var no_barcode_chance: float = 0.01
 
 var _scan_interval: float = 0.0
 var _conveyor_stopped: bool = false
 var _next_spawn_time: float = 0.0
 var _spawn_counter: int = 0
 var _first_spawn_done: bool = false
-var _label_counter: int = 0
+var _barcode_seq: int = 0
 var _pending_spawn_size: Vector3 = Vector3.ZERO
 var _has_pending_spawn_size: bool = false
 var _nc_bag: Array[bool] = []
@@ -261,20 +262,6 @@ func _add_box_to_scene(box: Box, spawn_transform: Transform3D, check_transform: 
 	box.color = box_color
 	box.instanced = true
 
-	if label_prefix != "":
-		_label_counter += 1
-		if _label_counter > 999:
-			_label_counter = 1
-		var label := Label3D.new()
-		label.name = "IDLabel"
-		label.text = label_prefix + "%03d" % _label_counter
-		label.font_size = label_font_size
-		label.position = Vector3(0, box.size.y / 2.0 + 0.01, 0)
-		label.rotation_degrees = Vector3(-90, 0, 0)
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		box.get_node("RigidBody3D").add_child(label)
-
 	if barcode_labels:
 		_apply_barcode_label(box)
 
@@ -288,6 +275,7 @@ func _add_box_to_scene(box: Box, spawn_transform: Transform3D, check_transform: 
 		rb.top_level = true
 		rb.global_transform = spawn_transform
 		rb.linear_velocity = initial_linear_velocity
+		rb.set_meta("box_size", box.size)   # so the ScanTunnel can report measured L/W/H
 	return true
 
 
@@ -311,9 +299,7 @@ func _on_spawn_succeeded() -> void:
 
 
 func _can_spawn_box(box_size: Vector3, spawn_transform: Transform3D) -> bool:
-	if not prevent_box_overlap:
-		return true
-
+	# Overlap prevention is always on — never spawn into a space another box occupies.
 	var spawn_pos := spawn_transform.origin
 	var inv_spawn_basis := spawn_transform.basis.orthonormalized().inverse()
 	var half_check_size := box_size * 0.5
@@ -364,81 +350,175 @@ func use() -> void:
 	disable = not disable
 
 
-## Stamps a standardized parcel barcode on the box top and stores the code as metadata
-## (on the RigidBody3D, which is what the CameraTunnel read-gate detects).
+## Stamps TWO barcodes on two random faces of the box (real parcels carry the same code on
+## multiple sides for redundancy). Both share one code unless [member multi_barcode_chance]
+## fires, which gives the two faces DIFFERENT codes (a multi-read). A rare parcel gets no label
+## at all ([member no_barcode_chance]); each label may independently be damaged. Recorded as the
+## [code]barcodes[/code] meta ([code]{code, face-normal}[/code] per label) for the ScanTunnel.
 func _apply_barcode_label(box: Box) -> void:
 	var rb := box.get_node_or_null("RigidBody3D")
 	if rb == null:
 		return
-	var damaged: bool = randf() < damaged_label_rate
-	var bc: Dictionary = BarcodeLabel.generate()
-	var text_str: String
-	var tex: Texture2D
-	if damaged:
-		# A rare unreadable parcel (damaged label / torn packaging): NO valid code, so the camera
-		# tunnel genuinely NO-READs it and the sorter recircs/rejects it (real-world bad label).
-		rb.set_meta("barcode_value", -1)
-		rb.set_meta("barcode_string", "")
-		tex = BarcodeLabel.make_damaged_texture()
-		text_str = ""
+	if randf() < no_barcode_chance:
+		rb.set_meta("barcodes", [])                  # no label at all -> no-read
+		return
+	# Two labels: the same code on both faces, unless this is a multi-read parcel.
+	var code_a: String = _next_code()
+	var code_b: String = code_a
+	if randf() < multi_barcode_chance:
+		code_b = _next_code()
+	var assigned: Array[String] = [code_a, code_b]
+	var faces: Array[Vector3] = [
+		Vector3.UP, Vector3.DOWN, Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]
+	faces.shuffle()
+	var barcodes: Array = []
+	for i: int in 2:
+		var n: Vector3 = faces[i]
+		var code: String = ""
+		var tex: Texture2D
+		if randf() < damaged_label_rate:
+			tex = BarcodeLabel.make_damaged_barcode_texture()   # torn/smudged -> no valid id
+		else:
+			code = assigned[i]
+			tex = BarcodeLabel.make_barcode_texture(code)
+		_attach_label_to_face(rb, box, n, tex, code)
+		barcodes.append({"code": code, "normal": n})
+	rb.set_meta("barcodes", barcodes)
+
+
+## Next sequential barcode id (wraps the per-run counter 1..999).
+func _next_code() -> String:
+	_barcode_seq += 1
+	if _barcode_seq > 999:
+		_barcode_seq = 1
+	return String(BarcodeLabel.generate(_barcode_seq)["string"])
+
+
+## Lays one barcode sticker (white backing + bars + human-readable id) flat on the box face
+## whose outward normal is [param n].
+func _attach_label_to_face(rb: Node, box: Box, n: Vector3, tex: Texture2D, text_str: String) -> void:
+	var ext: Vector3 = box.size * 0.5
+	var along: float = absf(n.x) * ext.x + absf(n.y) * ext.y + absf(n.z) * ext.z
+	var plane_a: float
+	var plane_b: float
+	if absf(n.y) > 0.5:
+		plane_a = box.size.x
+		plane_b = box.size.z
+	elif absf(n.x) > 0.5:
+		plane_a = box.size.z
+		plane_b = box.size.y
 	else:
-		rb.set_meta("barcode_value", bc["value"])
-		rb.set_meta("barcode_string", bc["string"])
-		tex = BarcodeLabel.make_texture(bc["value"])
-		text_str = String(bc["string"])
+		plane_a = box.size.x
+		plane_b = box.size.y
+	var w: float = minf(plane_a, plane_b) * 0.82
+	var aspect: float = float(tex.get_height()) / float(tex.get_width())  # bars strip h/w
 
-	var top: float = box.size.y / 2.0 + 0.002
-	var w: float = minf(box.size.x, box.size.z) * 0.78
-	var aspect: float = float(tex.get_height()) / float(tex.get_width())  # codes-strip h/w
+	# Parent the label content onto the chosen face: local +Y = the face's outward normal.
+	var tag := Node3D.new()
+	tag.name = "BarcodeLabel"
+	tag.transform = Transform3D(_face_basis(n), n * (along + 0.002))
+	rb.add_child(tag)
 
-	# white sticker backing (codes on top, text below)
+	# white sticker backing (bars above, text below)
 	var sticker := MeshInstance3D.new()
-	sticker.name = "BarcodeLabel"
+	sticker.name = "BarcodeBacking"
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(w, w * (aspect + 0.34))
+	pm.size = Vector2(w, w * aspect * 2.6)
 	sticker.mesh = pm
 	var wm := StandardMaterial3D.new()
 	wm.albedo_color = Color(0.97, 0.97, 0.95)
 	sticker.material_override = wm
-	sticker.position = Vector3(0, top, 0)
-	rb.add_child(sticker)
+	tag.add_child(sticker)
 
-	# the four Data Matrix codes (kept square via the texture's true aspect)
-	var codes := MeshInstance3D.new()
-	codes.name = "BarcodeCodes"
+	# the 1D barcode
+	var bars := MeshInstance3D.new()
+	bars.name = "BarcodeBars"
 	var cm := PlaneMesh.new()
 	cm.size = Vector2(w * 0.92, w * 0.92 * aspect)
-	codes.mesh = cm
+	bars.mesh = cm
 	var lm := StandardMaterial3D.new()
 	lm.albedo_texture = tex
 	lm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	codes.material_override = lm
-	codes.position = Vector3(0, top + 0.001, -w * (aspect + 0.34) * 0.22)
-	rb.add_child(codes)
+	bars.material_override = lm
+	bars.position = Vector3(0, 0.001, -w * aspect * 0.7)
+	tag.add_child(bars)
 
-	# human-readable string under the codes
+	# human-readable id under the bars
 	var text := Label3D.new()
 	text.name = "BarcodeText"
 	text.text = text_str
 	text.font_size = 48
-	text.pixel_size = w * 0.0012
+	text.pixel_size = w * 0.0011
 	text.modulate = Color.BLACK
 	text.rotation_degrees = Vector3(-90, 0, 0)
-	text.position = Vector3(0, top + 0.002, w * (aspect + 0.34) * 0.28)
-	rb.add_child(text)
+	text.position = Vector3(0, 0.002, w * aspect * 1.1)
+	tag.add_child(text)
+
+
+## Orthonormal basis whose local +Y axis points along [param normal] (the label's outward
+## face direction); the X/Z axes span the face. Used to lay the sticker flat on any face.
+static func _face_basis(normal: Vector3) -> Basis:
+	var n: Vector3 = normal.normalized()
+	var ref: Vector3 = Vector3.RIGHT if absf(n.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
+	var x: Vector3 = ref.cross(n).normalized()
+	return Basis(x, n, x.cross(n).normalized())
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	if conveyor == null:
+		return PackedStringArray([
+			"No conveyor assigned — assign one, or place this spawner above a conveyor so it"
+			+ " auto-assigns at simulation start."])
+	return PackedStringArray()
 
 
 func _on_simulation_started() -> void:
-	if conveyor and &"speed" not in conveyor:
+	if conveyor == null:
+		var found: Node3D = _find_conveyor_below()
+		if found != null:
+			# Auto-assigned; persists on the node — save the scene to keep it.
+			conveyor = found
+			print("BoxSpawner '%s' auto-assigned conveyor '%s' found beneath it." % [name, found.name])
+	if conveyor == null:
+		push_error("BoxSpawner '%s' has no conveyor assigned and none found beneath it." % name)
+	elif &"speed" not in conveyor:
 		push_warning("Conveyor reference in " + name + " does not have a speed property")
 	_clear_pending_spawn_size()
-	_label_counter = 0
+	_barcode_seq = 0
 	if barcode_labels:
 		randomize()                      # fresh barcode sequence each run
 	_reset_spawn_cycle()
 
 
+## Finds a conveyor sitting directly under this spawner: a node exposing `speed` and `size`,
+## below the spawn point, with the spawn point inside its belt footprint. Used to auto-assign
+## the conveyor at sim start when the field was left empty.
+func _find_conveyor_below() -> Node3D:
+	var root: Node = get_tree().current_scene
+	if root == null:
+		root = get_tree().edited_scene_root
+	if root == null:
+		return null
+	var origin: Vector3 = global_position
+	var best: Node3D = null
+	var best_y: float = -INF
+	for node: Node in root.find_children("*", "Node3D", true, false):
+		if node == self or (&"speed" not in node) or (&"size" not in node):
+			continue
+		var c: Node3D = node as Node3D
+		if c.global_position.y >= origin.y - 0.01:
+			continue                                  # must sit below the spawner
+		var sz: Vector3 = c.get("size")
+		var local: Vector3 = c.global_transform.affine_inverse() * origin
+		# Belt convention: origin at the belt start, +X over [0, length], centred across ±width/2.
+		if local.x >= -0.25 and local.x <= sz.x + 0.25 and absf(local.z) <= sz.z * 0.5 + 0.3:
+			if c.global_position.y > best_y:          # the nearest conveyor below wins
+				best_y = c.global_position.y
+				best = c
+	return best
+
+
 func _on_simulation_ended() -> void:
 	_clear_pending_spawn_size()
 	_conveyor_stopped = false
-	_label_counter = 0
+	_barcode_seq = 0
