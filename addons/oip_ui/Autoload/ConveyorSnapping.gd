@@ -736,8 +736,6 @@ static func _is_conveyor(node: Node) -> bool:
 		"NonConChute",
 		"NonConChute2",
 		"TurntableConveyor",
-		"VarioRoute",
-		"S7000Sorter",
 		"VR",
 	]
 

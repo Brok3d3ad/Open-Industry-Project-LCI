@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://carbs7000srt1"]
-
-[ext_resource type="Script" path="res://src/Equipment/s7000_sorter.gd" id="1_s7scr"]
-
-[node name="S7000" type="Node3D"]
-script = ExtResource("1_s7scr")

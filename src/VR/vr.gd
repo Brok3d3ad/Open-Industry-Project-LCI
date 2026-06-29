@@ -2,7 +2,7 @@
 class_name VR
 extends BeltConveyor
 
-## VarioRoute-style pivoting-roller sorter built on the `BeltConveyor` base.
+## Pivoting-roller sorter built on the `BeltConveyor` base.
 ##
 ## Inherits the belt conveyor's legs, side guards, frame rails, resize handles and
 ## snapping unchanged. It only SWAPS THE SURFACE: the flat belt mesh is hidden and a
