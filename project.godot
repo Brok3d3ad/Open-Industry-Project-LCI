@@ -48,6 +48,10 @@ gdscript/warnings/narrowing_conversion=2
 gdscript/warnings/int_as_enum_without_cast=2
 gdscript/warnings/int_as_enum_without_match=2
 
+[display]
+
+window/vsync/vsync_mode=0
+
 [editor]
 
 naming/default_signal_callback_name="_on_{NodeName}_{signal_name}"
