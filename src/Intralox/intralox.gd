@@ -549,9 +549,14 @@ void vertex() {
 	v_dir = INSTANCE_CUSTOM.x * 2.0 - 1.0;
 }
 void fragment() {
-	// Solid colour only (no animation): idle sections BLACK, diverting sections DARK RED.
-	float active = step(0.5, abs(v_dir));
-	ALBEDO = mix(vec3(0.03, 0.03, 0.03), vec3(0.30, 0.02, 0.02), active);
+	// Solid colour by divert direction (v_dir: +1 LEFT, -1 RIGHT, 0 straight): idle BLACK,
+	// diverting LEFT -> GREEN, diverting RIGHT -> YELLOW.
+	float left = step(0.5, v_dir);    // v_dir >= +0.5
+	float right = step(0.5, -v_dir);  // v_dir <= -0.5
+	vec3 col = vec3(0.03, 0.03, 0.03);
+	col = mix(col, vec3(0.03, 0.32, 0.05), left);
+	col = mix(col, vec3(0.36, 0.30, 0.02), right);
+	ALBEDO = col;
 	ROUGHNESS = 0.55;
 	METALLIC = 0.0;
 }
