@@ -372,6 +372,14 @@ static func _align_straight_to_straight(
 	var dot_product: float = absf(sel_forward.dot(tgt_forward))
 	var is_perpendicular: bool = dot_product < 0.7
 
+	# Two PARALLEL conveyors placed alongside each other (near sides touching) -> snap SIDE BY SIDE.
+	# The modes below only cover end-to-end and perpendicular T-junctions, so handle the parallel-
+	# adjacent case first; it returns {} (falls through) unless the selected is clearly beside the target.
+	if not is_perpendicular:
+		var sbs: Dictionary = _try_side_by_side(selected, target, sel_xform, tgt_xform, sel_features, tgt_left, tgt_right)
+		if not sbs.is_empty():
+			return sbs
+
 	var min_side: float = minf(dist_left, dist_right)
 	var min_end: float = minf(dist_front, dist_back)
 	var min_distance: float
@@ -433,7 +441,7 @@ static func _align_straight_to_straight(
 		snap_transform.origin = contact - new_basis * sel_end_pos
 		# Y tracks the contact so elevated segments (Z-frame top, walk-thru hump) work.
 		# Subtract the feature's own height so parts whose snap point sits above their
-		# origin (e.g. a chute bed) land WITH the feature on the contact line.
+		# origin (e.g. a raised bed) land WITH the feature on the contact line.
 		snap_transform.origin.y = contact.y - sel_end_pos.y
 		var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
 		snapped_end = {"pos": sel_end_pos, "outward": sel_end_outward, "name": sel_end_name}
@@ -494,6 +502,58 @@ static func _conveyor_size_x(node: Node3D) -> float:
 	if &"size" in node:
 		return (node.size as Vector3).x
 	return 4.0
+
+
+## Half the conveyor width (cross axis), from its side-guard snap feature (z = ±half_w), or `size.z`.
+static func _half_width(node: Node3D, features: Array) -> float:
+	var r: Dictionary = _find_by_kind(features, &"straight_sideguard_right")
+	if not r.is_empty():
+		return absf((r.seg_start as Vector3).z)
+	if &"size" in node:
+		return (node.size as Vector3).z * 0.5
+	return 0.5
+
+
+## Snap the selected PARALLEL and laterally adjacent to the target (near sides touching, same surface
+## height), free to slide along the flow. Returns {} unless the selected is clearly beside the target,
+## so end-to-end / T-junction snaps are unaffected.
+static func _try_side_by_side(selected: Node3D, target: Node3D, sel_xform: Transform3D,
+		tgt_xform: Transform3D, sel_features: Array, tgt_left: Dictionary, tgt_right: Dictionary) -> Dictionary:
+	if tgt_left.is_empty() or tgt_right.is_empty():
+		return {}
+	var sel_origin: Vector3 = sel_xform.origin
+	var sel_local: Vector3 = tgt_xform.affine_inverse() * sel_origin
+	var tgt_half_w: float = absf((tgt_right.seg_start as Vector3).z)
+	var sel_half_w: float = _half_width(selected, sel_features)
+	var adjacent: float = tgt_half_w + sel_half_w
+	var tgt_half_len: float = _conveyor_size_x(target) * 0.5
+	# Must sit OUTSIDE the target laterally, close to the touching offset, and overlap along the flow.
+	if absf(sel_local.z) <= tgt_half_w * 0.6:
+		return {}
+	if absf(absf(sel_local.z) - adjacent) > maxf(0.6, sel_half_w):
+		return {}
+	if absf(sel_local.x) > tgt_half_len + adjacent + 1.0:
+		return {}
+	var to_left: bool = sel_local.z < 0.0
+	var seg: Dictionary = tgt_left if to_left else tgt_right
+	var seg_start_w: Vector3 = tgt_xform * (seg.seg_start as Vector3)
+	var seg_end_w: Vector3 = tgt_xform * (seg.seg_end as Vector3)
+	var contact: Vector3 = _closest_point_on_segment(sel_origin, seg_start_w, seg_end_w)
+	contact = _surface_contact(target, tgt_xform, contact)
+	var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
+	var z_off: float = -adjacent if to_left else adjacent
+	var basis: Basis = _apply_inclination(tgt_xform.basis, _z_inclination(sel_xform))
+	var t: Transform3D = Transform3D()
+	t.basis = basis
+	# Keep the drag's along-flow position (contact_local.x); snap lateral (touching) + surface height.
+	t.origin = tgt_xform * Vector3(contact_local.x, 0.0, z_off)
+	var out_z: float = 1.0 if to_left else -1.0
+	return {
+		"transform": t,
+		"snapped_end": {"pos": Vector3.ZERO, "outward": Vector3(0.0, 0.0, out_z), "name": &"side"},
+		"target_end": {"pos": contact_local, "outward": Vector3(0.0, 0.0, -out_z), "name": &"left_side" if to_left else &"right_side"},
+		"is_end_to_end": false,
+	}
 
 
 static func _z_inclination(xform: Transform3D) -> float:

@@ -53,7 +53,14 @@ static func set_surface_blending(body: StaticBody3D, on: bool) -> void:
 
 
 static func drive_body(body: RigidBody3D, footprint: Vector3, delta: float) -> void:
-	if not enabled or body == null or body.freeze or delta <= 0.0:
+	if not enabled or body == null or body.freeze or body.sleeping or delta <= 0.0:
+		return
+	# The assist only ever drives surfaces that opted into the blending group (velocity_blending=true).
+	# When none exist, drive_body is a no-op — bail BEFORE the per-box footprint raycasts so idle scenes
+	# (and every settled box) don't pay 5 raycasts/tick for nothing. get_first_node_in_group is
+	# self-correcting as bodies are freed.
+	var tree := body.get_tree()
+	if tree == null or tree.get_first_node_in_group(SURFACE_GROUP) == null:
 		return
 	var world := body.get_world_3d()
 	if world == null:

@@ -733,10 +733,10 @@ static func _is_conveyor(node: Node) -> bool:
 		"RollerSpurConveyor",
 		"BeltConveyor", "RollerConveyor",
 		"CurvedBeltConveyor", "CurvedRollerConveyor",
-		"NonConChute",
-		"NonConChute2",
 		"TurntableConveyor",
 		"VR",
+		"Intralox",
+		"NonConveyableChute",
 	]
 
 	return global_name in conveyor_types or node_class in conveyor_types
@@ -1337,6 +1337,8 @@ static func _is_straight_conveyor(conveyor: Node3D) -> bool:
 		"RollerConveyor",
 		"RollerSpurConveyor",
 		"TurntableConveyor",
+		"Intralox",
+		"NonConveyableChute",
 	]
 
 	return global_name in straight_types or node_class in straight_types

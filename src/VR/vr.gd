@@ -325,13 +325,17 @@ func _build_deck_fill(min_x: float, max_x: float, min_z: float, max_z: float, to
 		fill.name = "_VRDeckFill"
 		add_child(fill, false, Node.INTERNAL_MODE_FRONT)
 		fill.owner = self
-	var depth: float = maxf(DECK_THICKNESS, BODY_DEPTH)
+	# Slab top just below the panel bottom so the holes become recesses (no z-fight).
+	var deck_top: float = top_y - 0.05 + ROLLER_HEIGHT_OFFSET
+	# Depth tied to the belt `height` so the slab BOTTOM lands at the belt bottom where the legs
+	# attach — keeps the deck, body and legs aligned instead of a hardcoded depth that can punch
+	# past the legs into the floor when `height` differs.
+	var belt_bottom: float = top_y - height
+	var depth: float = maxf(0.05, deck_top - belt_bottom)
 	var bm := BoxMesh.new()
 	bm.size = Vector3(maxf(0.05, max_x - min_x), depth, maxf(0.05, max_z - min_z))
 	fill.mesh = bm
 	fill.set_surface_override_material(0, SideGuardMesh.create_material())
-	# Slab top just below the panel bottom so the holes become recesses (no z-fight).
-	var deck_top: float = top_y - 0.05 + ROLLER_HEIGHT_OFFSET
 	fill.position = Vector3((min_x + max_x) * 0.5, deck_top - depth * 0.5, (min_z + max_z) * 0.5)
 
 

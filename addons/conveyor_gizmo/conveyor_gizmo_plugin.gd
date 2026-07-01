@@ -31,8 +31,6 @@ func _has_gizmo(node):
 		"res://src/Fence/fence.gd",
 		"res://src/Rack/rack.gd",
 		"res://src/FloorMarking/floor_marking.gd",
-		"res://src/Chute/noncon_chute.gd",
-		"res://src/Chute/noncon_chute_2.gd",
 	]
 
 	return script_path in valid_scripts

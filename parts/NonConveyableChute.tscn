@@ -1,0 +1,18 @@
+[gd_scene format=4 uid="uid://d0522o0yia5uq"]
+
+[ext_resource type="Script" uid="uid://cncchute0gd01" path="res://src/Chute/non_conveyable_chute.gd" id="1_chute"]
+[ext_resource type="Script" path="res://src/Conveyor/belt_segment.gd" id="2_seg"]
+
+[sub_resource type="Resource" id="Resource_chuteseg"]
+resource_local_to_scene = true
+script = ExtResource("2_seg")
+length = 5.6074
+
+[node name="NonConveyableChute" type="Node3D" unique_id=206500001]
+script = ExtResource("1_chute")
+width = 2.54
+speed = 0.0
+frame_rails_enabled = false
+left_side_guards_enabled = false
+right_side_guards_enabled = false
+segments = Array[ExtResource("2_seg")]([SubResource("Resource_chuteseg")])

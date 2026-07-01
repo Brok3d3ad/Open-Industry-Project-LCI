@@ -25,14 +25,6 @@ extends ResizableNode3D
 ## Initial velocity applied to spawned boxes.
 @export var initial_linear_velocity: Vector3 = Vector3.ZERO
 
-@export_subgroup("Random Mass")
-## Enable random mass for spawned boxes within min/max range.
-@export var random_mass: bool = false
-## Minimum mass for randomly massed boxes, in kilograms.
-@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_min: float = 5.0
-## Maximum mass for randomly massed boxes, in kilograms.
-@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_max: float = 15.0
-
 @export_group("Box Size")
 @export_subgroup("Conveyable")
 ## Enable random sizing for conveyable boxes within the min/max range below.
@@ -49,6 +41,21 @@ extends ResizableNode3D
 @export var non_conveyable_random_size_min: Vector3 = Vector3(1.201, 0.611, 0.761)
 ## Maximum non-conveyable box size — X=length, Y=height, Z=width (metres).
 @export var non_conveyable_random_size_max: Vector3 = Vector3(2.54, 1.067, 1.067)
+
+@export_group("Box Mass")
+@export_subgroup("Conveyable")
+## Enable random mass for conveyable boxes within the min/max range below.
+@export var random_mass: bool = true
+## Minimum conveyable box mass, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_min: float = 0.02
+## Maximum conveyable box mass, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var random_mass_max: float = 22.6
+
+@export_subgroup("Non-Conveyable", "non_conveyable_")
+## Minimum non-conveyable box mass, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var non_conveyable_random_mass_min: float = 22.7
+## Maximum non-conveyable box mass, in kilograms.
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var non_conveyable_random_mass_max: float = 45.0
 
 @export_group("Spawn Rate")
 ## Number of boxes spawned per minute (0-1000).
@@ -92,6 +99,7 @@ var _first_spawn_done: bool = false
 var _barcode_seq: int = 0
 var _pending_spawn_size: Vector3 = Vector3.ZERO
 var _has_pending_spawn_size: bool = false
+var _pending_non_conveyable: bool = false
 var _nc_bag: Array[bool] = []
 var _nc_bag_bpm: int = 0
 var _nc_bag_chance: float = -1.0
@@ -181,12 +189,13 @@ func _instantiate_box() -> Box:
 	var spawn_request := _reserve_spawn_request()
 	box.size = spawn_request["size"]
 	box.set_meta("_reserved_spawn_size", spawn_request["size"])
+	box.set_meta("_reserved_non_conveyable", spawn_request["non_conveyable"])
 	box.set_meta("_used_pending_spawn_size", spawn_request["used_pending"])
 	return box
 
 
-func _get_spawn_size() -> Vector3:
-	if _draw_nc_from_bag():
+func _spawn_size_for(non_conveyable: bool) -> Vector3:
+	if non_conveyable:
 		return _get_random_size(non_conveyable_random_size_min, non_conveyable_random_size_max)
 	if random_size:
 		return _get_random_size(random_size_min, random_size_max)
@@ -238,10 +247,13 @@ func _reserve_spawn_request() -> Dictionary:
 		_has_pending_spawn_size = false
 		return {
 			"size": _pending_spawn_size,
+			"non_conveyable": _pending_non_conveyable,
 			"used_pending": true,
 		}
+	var non_con: bool = _draw_nc_from_bag()
 	return {
-		"size": _get_spawn_size(),
+		"size": _spawn_size_for(non_con),
+		"non_conveyable": non_con,
 		"used_pending": false,
 	}
 
@@ -255,7 +267,10 @@ func _add_box_to_scene(box: Box, spawn_transform: Transform3D, check_transform: 
 	if box.get_meta("_used_pending_spawn_size", false):
 		_clear_pending_spawn_size()
 	if random_mass:
-		box.mass = randf_range(random_mass_min, random_mass_max)
+		if box.get_meta("_reserved_non_conveyable", false):
+			box.mass = randf_range(non_conveyable_random_mass_min, non_conveyable_random_mass_max)
+		else:
+			box.mass = randf_range(random_mass_min, random_mass_max)
 	else:
 		box.mass = mass
 	box.initial_linear_velocity = initial_linear_velocity
@@ -283,11 +298,13 @@ func _requeue_failed_spawn_size(box: Box) -> void:
 	var spawn_size: Variant = box.get_meta("_reserved_spawn_size", box.size)
 	if spawn_size is Vector3:
 		_pending_spawn_size = spawn_size
+		_pending_non_conveyable = box.get_meta("_reserved_non_conveyable", false)
 		_has_pending_spawn_size = true
 
 
 func _clear_pending_spawn_size() -> void:
 	_pending_spawn_size = Vector3.ZERO
+	_pending_non_conveyable = false
 	_has_pending_spawn_size = false
 
 

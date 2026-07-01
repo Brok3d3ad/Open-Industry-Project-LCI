@@ -1,0 +1,14 @@
+[gd_scene format=4 uid="uid://c7272i76axpai"]
+
+[ext_resource type="Script" uid="uid://cintralox0gd1" path="res://src/Intralox/intralox.gd" id="1_itlx"]
+[ext_resource type="Script" path="res://src/Conveyor/belt_segment.gd" id="2_seg"]
+
+[sub_resource type="Resource" id="Resource_itlxseg"]
+resource_local_to_scene = true
+script = ExtResource("2_seg")
+length = 1.8288
+
+[node name="Intralox" type="Node3D" unique_id=160501601]
+script = ExtResource("1_itlx")
+width = 1.524
+segments = Array[ExtResource("2_seg")]([SubResource("Resource_itlxseg")])

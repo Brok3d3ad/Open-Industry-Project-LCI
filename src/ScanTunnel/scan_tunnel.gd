@@ -23,7 +23,6 @@ const _CONVEYOR_TYPES: Array[StringName] = [
 	&"BeltSpurConveyor", &"RollerSpurConveyor",
 	&"CurvedBeltConveyor", &"CurvedRollerConveyor",
 	&"TurntableConveyor", &"VR",
-	&"NonConChute", &"NonConChute2",
 ]
 
 const _DOWN_DOT: float = -0.5                    # face normal.y below this = unreadable (belt side)

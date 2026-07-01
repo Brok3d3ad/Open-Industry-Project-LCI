@@ -53,6 +53,11 @@ func _ready() -> void:
 	if color != Color.WHITE:
 		set("color", color)
 	_rigid_body_3d.mass = mass
+	# Let settled boxes sleep so Jolt drops them from the solver (huge win for piled/accumulated
+	# packages). A sleep-veto (below) keeps boxes on a MOVING belt awake so they never freeze mid-line.
+	_rigid_body_3d.can_sleep = true
+	if not _rigid_body_3d.sleeping_state_changed.is_connected(_on_sleeping_changed):
+		_rigid_body_3d.sleeping_state_changed.connect(_on_sleeping_changed)
 	_rigid_body_3d.freeze = not Simulation.is_running()
 	if Simulation.is_running():
 		instanced = true
@@ -74,6 +79,33 @@ func _physics_process(delta: float) -> void:
 	if _rigid_body_3d.freeze:
 		return
 	ConveyorTransport.drive_body(_rigid_body_3d, size, delta)
+
+
+## Only boxes on a STOPPED surface (chute / floor / an idle box pile) should sleep. If we just fell
+## asleep while resting on a MOVING belt (its surface carries a constant_linear_velocity), wake back
+## up so the belt keeps driving us — a briefly-stalled box must never freeze mid-line. This costs one
+## raycast per sleep transition, not per frame.
+func _on_sleeping_changed() -> void:
+	if not Simulation.is_running() or not _rigid_body_3d.sleeping:
+		return
+	if _is_on_moving_surface():
+		_rigid_body_3d.sleeping = false
+
+
+func _is_on_moving_surface() -> bool:
+	var world := _rigid_body_3d.get_world_3d()
+	if world == null:
+		return false
+	var space := world.direct_space_state
+	if space == null:
+		return false
+	var from := _rigid_body_3d.global_position
+	var to := from + Vector3(0.0, -(size.y * 0.5 + 0.15), 0.0)
+	var q := PhysicsRayQueryParameters3D.create(from, to)
+	q.exclude = [_rigid_body_3d.get_rid()]
+	var hit := space.intersect_ray(q)
+	var col := hit.get("collider") as StaticBody3D
+	return col != null and col.constant_linear_velocity.length() > 0.05
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:

@@ -344,7 +344,7 @@ func _trackable_parts() -> Array:
 		if n == root or not (n is Node3D):
 			continue
 		var nm: String = String(n.name)
-		if n.has_method("get_snap_features") or nm.contains("Conveyor") or nm.contains("Chute") \
+		if n.has_method("get_snap_features") or nm.contains("Conveyor") \
 				or nm.contains("VR") or nm.contains("Belt") or nm.contains("Roller") or nm.contains("Diverter"):
 			_parts_cache.append(n)
 	return _parts_cache
