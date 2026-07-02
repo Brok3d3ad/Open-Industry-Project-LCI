@@ -38,6 +38,7 @@ const ROLLER_HEIGHT_OFFSET: float = 0.0  # vertical nudge of the roller field
 const SHOW_PANELS: bool = false          # GLB white tiles on top of the deck
 const BODY_DEPTH: float = 0.45           # solid deck slab depth toward the legs
 const MAX_DIVERT_ANGLE: float = 35.0     # pivot angle when diverting
+const BOX_CURVE_DEG_PER_M: float = 30.0  # box yaw into the divert, degrees per metre travelled
 const ROLLER_SPIN_SPEED: float = 8.0     # barrel spin rate
 const STAGGER: bool = true               # brick / staggered layout
 const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys straight by default
@@ -84,6 +85,7 @@ var _lb_bodies: Array = []
 var _parcels: Dictionary = {}        # RigidBody3D -> latched DivertDir (sampled at the light barrier)
 var _fully_on: Dictionary = {}       # RigidBody3D -> true once the box is fully on the deck
 var _box_len: Dictionary = {}        # RigidBody3D -> length measured crossing the light barrier
+var _curve_yaw: Dictionary = {}      # RigidBody3D -> yaw (rad, signed) already applied this divert
 var _lb_entry_x: Dictionary = {}     # RigidBody3D -> local X when it tripped the light barrier
 var _sort_counter: int = 0
 # Per-section (per row of rollers) divert state — each row diverts independently.
@@ -495,6 +497,7 @@ func _on_deck_body_exited(b: Node) -> void:
 		_fully_on.erase(b)
 		_box_len.erase(b)
 		_lb_entry_x.erase(b)
+		_curve_yaw.erase(b)
 
 
 func _local_x(b: Node) -> float:
@@ -510,6 +513,7 @@ func _physics_process(delta: float) -> void:
 		_auto_passing = {}
 		_auto_last_detected = false
 		_auto_primed = false
+		_curve_yaw.clear()
 	# drop parcels that left the scene
 	for p: Variant in _parcels.keys():
 		if not is_instance_valid(p):
@@ -517,6 +521,7 @@ func _physics_process(delta: float) -> void:
 			_fully_on.erase(p)
 			_box_len.erase(p)
 			_lb_entry_x.erase(p)
+			_curve_yaw.erase(p)
 	var moving: bool = speed != 0.0 and Simulation.is_running() and not Simulation.is_paused()
 	if not sensor.is_empty():
 		_poll_auto_sensor()
@@ -537,6 +542,7 @@ func _physics_process(delta: float) -> void:
 		var rad: float = deg_to_rad(target)
 		var flow: Vector3 = body.global_transform.basis.x.normalized()
 		body.constant_linear_velocity = (Basis(Vector3.UP, rad) * flow) * speed
+	_curve_parcels(delta, moving)
 	if _roller_shader != null:
 		var spin: float = ROLLER_SPIN_SPEED if moving else 0.0
 		# Default spins forward with flow; FLIP_SPIN reverses.
@@ -617,6 +623,37 @@ func _command_angle(d: int) -> float:
 	if d == int(DivertDir.RIGHT):
 		return -MAX_DIVERT_ANGLE
 	return 0.0
+
+
+## Yaw each diverting parcel toward its divert direction so it visibly CURVES into the
+## takeaway (like a real pivoting-roller unit skews the box) instead of translating
+## sideways still facing down the line. Applied as angular velocity so collisions still
+## resolve through the solver; capped at the divert angle total, and the yaw rate scales
+## with belt speed (degrees per metre travelled) so slow lines curve gently.
+func _curve_parcels(delta: float, moving: bool) -> void:
+	if not moving or delta <= 0.0:
+		return
+	var rate: float = deg_to_rad(BOX_CURVE_DEG_PER_M) * absf(speed)
+	for p: Variant in _parcels.keys():
+		if not is_instance_valid(p):
+			continue
+		var body := p as RigidBody3D
+		if body == null or body.freeze or body.sleeping:
+			continue
+		var ang: float = _section_target_angle(_local_x(body))
+		if ang == 0.0:
+			_curve_yaw.erase(body)   # divert finished (or not begun) — re-arm for the next one
+			continue
+		var applied: float = float(_curve_yaw.get(body, 0.0))
+		var remaining: float = deg_to_rad(ang) - applied
+		if absf(remaining) < 0.005:
+			continue   # already turned the full divert angle
+		# Same sign convention as the section velocities (Basis about UP): +angle = LEFT.
+		var yaw_vel: float = clampf(remaining / delta, -rate, rate)
+		var w: Vector3 = body.angular_velocity
+		w.y = yaw_vel
+		body.angular_velocity = w
+		_curve_yaw[body] = applied + yaw_vel * delta
 
 
 #region Auto mode ------------------------------------------------------------------
