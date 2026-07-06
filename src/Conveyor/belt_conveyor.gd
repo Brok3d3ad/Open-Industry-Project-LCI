@@ -1407,6 +1407,17 @@ func _update_speed_label() -> void:
 	_speed_label.text = _speed_label_text()
 
 
+# Deck pose the legs plant against, and the legs' local Z-rotation compensation.
+# Base: the live node transform, no compensation. `VSU` overrides both so its
+# legs stand planted for the nose-up pose while the deck swings beneath them.
+func _legs_deck_xform() -> Transform3D:
+	return global_transform if is_inside_tree() else Transform3D.IDENTITY
+
+
+func _legs_local_z_rot() -> float:
+	return 0.0
+
+
 func _rebuild_legs() -> void:
 	_legs.clear()
 	var keep: Dictionary = {}
@@ -1420,8 +1431,9 @@ func _rebuild_legs() -> void:
 	var specs: Array = _compute_leg_specs(top_len)
 	var leg_z_scale: float = maxf(0.1, width * 0.5)
 	var node_xform: Transform3D = global_transform if is_inside_tree() else Transform3D.IDENTITY
+	var deck_xform: Transform3D = _legs_deck_xform()
 	# Project floor normal onto the belt-plane so legs stay flush on a tilted floor.
-	var cross_axis_world: Vector3 = node_xform.basis.z.normalized()
+	var cross_axis_world: Vector3 = deck_xform.basis.z.normalized()
 	var legs_normal_world: Vector3 = floor_plane.normal.slide(cross_axis_world)
 	if legs_normal_world.length_squared() < 1.0e-6:
 		_remove_orphan_legs(keep)
@@ -1432,7 +1444,7 @@ func _rebuild_legs() -> void:
 		var s: float = spec["s"]
 		var sample: Transform3D = _path.sample(s)
 		var belt_bottom_local: Vector3 = sample.origin - sample.basis.y * height
-		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
+		var belt_bottom_world: Vector3 = deck_xform * belt_bottom_local
 		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
@@ -1450,10 +1462,11 @@ func _rebuild_legs() -> void:
 			# which broke under the leg sub-scene's @tool scripts.
 			add_child(leg, false, Node.INTERNAL_MODE_FRONT)
 		leg.visible = true
-		# Set position/scale only; reassigning global_transform triggers a leg-side
-		# transform cascade before its @onready vars settle.
+		# Set position/rotation/scale only; reassigning global_transform triggers a
+		# leg-side transform cascade before its @onready vars settle.
 		var foot_local: Vector3 = node_xform.affine_inverse() * foot_world
 		leg.position = foot_local
+		leg.rotation = Vector3(0.0, 0.0, _legs_local_z_rot())
 		leg.scale = Vector3(1.0, leg_height, leg_z_scale)
 		keep[leg_name] = true
 		_legs.append(leg)
@@ -1483,7 +1496,8 @@ func _reposition_existing_legs() -> void:
 		return
 	var leg_z_scale: float = maxf(0.1, width * 0.5)
 	var node_xform: Transform3D = global_transform if is_inside_tree() else Transform3D.IDENTITY
-	var cross_axis_world: Vector3 = node_xform.basis.z.normalized()
+	var deck_xform: Transform3D = _legs_deck_xform()
+	var cross_axis_world: Vector3 = deck_xform.basis.z.normalized()
 	var legs_normal_world: Vector3 = floor_plane.normal.slide(cross_axis_world)
 	if legs_normal_world.length_squared() < 1.0e-6:
 		return
@@ -1496,7 +1510,7 @@ func _reposition_existing_legs() -> void:
 		var s_val: float = spec["s"]
 		var sample: Transform3D = _path.sample(s_val)
 		var belt_bottom_local: Vector3 = sample.origin - sample.basis.y * height
-		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
+		var belt_bottom_world: Vector3 = deck_xform * belt_bottom_local
 		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			leg.visible = false
@@ -1509,6 +1523,7 @@ func _reposition_existing_legs() -> void:
 		leg.visible = true
 		var foot_local: Vector3 = node_xform.affine_inverse() * foot_world
 		leg.position = foot_local
+		leg.rotation = Vector3(0.0, 0.0, _legs_local_z_rot())
 		leg.scale = Vector3(1.0, leg_height, leg_z_scale)
 
 

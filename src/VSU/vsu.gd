@@ -22,8 +22,12 @@ extends BeltConveyor
 @export var incline_up: bool = false
 ## Tilt the deck down to -[member down_angle].
 @export var incline_down: bool = false
-## Deck angle while [member incline_up] is on, degrees.
-@export_range(0.0, 45.0, 0.1, "suffix:°") var up_angle: float = 12.0
+## Deck angle while [member incline_up] is on, degrees. The legs are planted for
+## this pose, so changing it re-plants them.
+@export_range(0.0, 45.0, 0.1, "suffix:°") var up_angle: float = 12.0:
+	set(value):
+		up_angle = value
+		_request_legs_refresh()
 ## Deck angle while [member incline_down] is on, degrees (tilts below level).
 @export_range(0.0, 45.0, 0.1, "suffix:°") var down_angle: float = 12.0
 ## Ramp rate toward the target incline, degrees per second.
@@ -69,6 +73,23 @@ func _physics_process(delta: float) -> void:
 	var tilted: Basis = (transform.basis * Basis(Vector3(0, 0, 1), deg_to_rad(next - _tilt_deg))).orthonormalized()
 	transform = Transform3D(tilted, transform.origin)
 	_tilt_deg = next
+
+
+#region Legs -----------------------------------------------------------------------
+## The legs are STATIONARY: they plant against the pose the deck has at full
+## nose-up tilt and stay put while the deck swings between them. Both hooks are
+## expressed relative to the live transform minus the applied tilt, so they don't
+## change while the deck animates — the legs never move or resize mid-tilt.
+func _legs_deck_xform() -> Transform3D:
+	var xf: Transform3D = global_transform if is_inside_tree() else Transform3D.IDENTITY
+	var up: Basis = (xf.basis * Basis(Vector3(0, 0, 1), deg_to_rad(up_angle - _tilt_deg))).orthonormalized()
+	return Transform3D(up, xf.origin)
+
+
+## Cancel the node tilt so the posts stay world-vertical while the deck rotates.
+func _legs_local_z_rot() -> float:
+	return deg_to_rad(-_tilt_deg)
+#endregion
 
 
 #region Communications -------------------------------------------------------------
