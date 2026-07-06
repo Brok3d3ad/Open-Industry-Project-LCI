@@ -11,7 +11,7 @@ extends BeltConveyor
 ## [member incline_up] / [member incline_down] are the commands: toggle them in the
 ## inspector, or let the PLC drive them through the BOOL read tags below (Enable
 ## Comms + running simulation). Up wins while both are set; with both off the deck
-## holds its last commanded position. A fresh unit starts DOWN. The deck ramps
+## holds its last commanded position. A fresh unit starts UP. The deck ramps
 ## toward the target angle at [member tilt_speed].
 ##
 ## The tilt is applied as a RIGID ROTATION of the node about its tail pivot — not
@@ -47,7 +47,7 @@ extends BeltConveyor
 @export_storage var _tilt_deg: float = 0.0
 
 ## Latched position command — the deck only ever targets UP or DOWN.
-@export_storage var _target_up: bool = false
+@export_storage var _target_up: bool = true
 
 ## The VSU carries no legs; the inherited leg properties are hidden too.
 const _HIDDEN_LEG_PROPS: PackedStringArray = [
