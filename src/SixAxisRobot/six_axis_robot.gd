@@ -16,6 +16,7 @@ const JOINT_LIMITS_MIN: Array[float] = [-180.0, -135.0, -160.0, -180.0, -120.0, 
 const JOINT_LIMITS_MAX: Array[float] = [180.0, 135.0, 160.0, 180.0, 120.0, 360.0]
 const JOINT_ANGLE_PROPS := ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
+const EOAT_PROPS := ["tool_size_x", "tool_size_z", "cup_pitch_x", "cup_pitch_z", "cup_margin_x", "cup_margin_z", "cups_enabled"]
 
 @export_tool_button("Set Home") var action_set_home: Callable = set_home_action
 @export_tool_button("Go Home") var action_go_home: Callable = go_home_action
@@ -44,6 +45,46 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 		pass
 	get:
 		return _held_object != null
+
+@export_category("EOAT")
+## Tool width along the EOAT local X axis
+@export_range(0.5, 3.0, 0.01, "or_greater", "suffix:m") var tool_size_x: float = 0.5:
+	set(value):
+		tool_size_x = maxf(value, 0.5)
+		_apply_eoat_settings()
+		update_gizmos()
+
+## Tool length along the EOAT local Z axis
+@export_range(0.5, 3.0, 0.01, "or_greater", "suffix:m") var tool_size_z: float = 0.5:
+	set(value):
+		tool_size_z = maxf(value, 0.5)
+		_apply_eoat_settings()
+		update_gizmos()
+
+@export_range(0.01, 0.5, 0.005, "or_greater", "suffix:m") var cup_pitch_x: float = 0.1:
+	set(value):
+		cup_pitch_x = maxf(value, 0.01)
+		_apply_eoat_settings()
+
+@export_range(0.01, 0.5, 0.005, "or_greater", "suffix:m") var cup_pitch_z: float = 0.1:
+	set(value):
+		cup_pitch_z = maxf(value, 0.01)
+		_apply_eoat_settings()
+
+@export_range(0.0, 0.5, 0.005, "or_greater", "suffix:m") var cup_margin_x: float = 0.05:
+	set(value):
+		cup_margin_x = maxf(value, 0.0)
+		_apply_eoat_settings()
+
+@export_range(0.0, 0.5, 0.005, "or_greater", "suffix:m") var cup_margin_z: float = 0.05:
+	set(value):
+		cup_margin_z = maxf(value, 0.0)
+		_apply_eoat_settings()
+
+@export var cups_enabled: bool = true:
+	set(value):
+		cups_enabled = value
+		_apply_eoat_settings()
 
 @export_category("Joint Angles")
 ## Base rotation
@@ -94,6 +135,11 @@ const JOINT_IS_Y_AXIS := [true, false, false, true, false, true]
 		show_gizmos = value
 		update_gizmos()
 
+@export var show_eoat_gizmo: bool = true:
+	set(value):
+		show_eoat_gizmo = value
+		update_gizmos()
+
 @export_category("Communications")
 @export var enable_comms: bool = false
 @export var tag_group_name: String
@@ -130,6 +176,7 @@ var _vacuum_area: Area3D
 var _held_object: Node3D = null
 var _held_rigid_body: RigidBody3D = null
 var _held_object_basis: Basis = Basis.IDENTITY
+var _held_object_offset: Vector3 = Vector3.ZERO
 var _objects_in_range: Array[Node3D] = []
 
 var _motion_tween: Tween = null
@@ -137,6 +184,56 @@ var _is_moving: bool = false
 var _initialized: bool = false
 var _solving_ik: bool = false
 
+func _connect_vacuum_area_signals() -> void:
+	if not _vacuum_area:
+		return
+
+	if not _vacuum_area.body_entered.is_connected(_on_vacuum_area_body_entered):
+		_vacuum_area.body_entered.connect(_on_vacuum_area_body_entered)
+
+	if not _vacuum_area.body_exited.is_connected(_on_vacuum_area_body_exited):
+		_vacuum_area.body_exited.connect(_on_vacuum_area_body_exited)
+
+
+func get_attached_tool() -> Node3D:
+	if not _tool_pivot:
+		return null
+
+	for child in _tool_pivot.get_children():
+		if child == _suction_mesh or child == _vacuum_area:
+			continue
+		if child is Node3D:
+			return child as Node3D
+
+	return null
+
+
+func _find_vacuum_area_in_attached_tool() -> Area3D:
+	var tool := get_attached_tool()
+	if not tool:
+		return null
+	return tool.find_child("VacuumArea", true, false) as Area3D
+
+
+func _forward_vacuum_to_tool() -> void:
+	var tool := get_attached_tool()
+	if not tool:
+		return
+
+	if tool.has_method("set_vacuum_enabled"):
+		tool.call("set_vacuum_enabled", vacuum_on)
+	elif "vacuum_on" in tool:
+		tool.set("vacuum_on", vacuum_on)
+
+
+func _apply_eoat_settings() -> void:
+	var tool := get_attached_tool()
+	if not tool:
+		return
+
+	for prop: String in EOAT_PROPS:
+		if prop in tool:
+			tool.set(prop, get(prop))
 
 func _enter_tree() -> void:
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
@@ -158,11 +255,15 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_setup_node_references()
+	_connect_vacuum_area_signals()
 	_update_scale()
 	_update_joints()
 	_update_vacuum_indicator()
+	_forward_vacuum_to_tool()
+	_apply_eoat_settings()
 	new_waypoint_name = _get_next_waypoint_name()
-	
+
 	if _vacuum_area:
 		if not _vacuum_area.body_entered.is_connected(_on_vacuum_area_body_entered):
 			_vacuum_area.body_entered.connect(_on_vacuum_area_body_entered)
@@ -178,21 +279,24 @@ func _setup_node_references() -> void:
 	_base_pivot = get_node_or_null("BasePivot")
 	if not _base_pivot:
 		return
-	
+
 	_initialized = true
-	
+
 	var shoulder_pivot := _base_pivot.get_node_or_null("ShoulderPivot")
 	_upper_arm_pivot = shoulder_pivot.get_node_or_null("UpperArmPivot") if shoulder_pivot else null
-	
+
 	var elbow_pivot := _upper_arm_pivot.get_node_or_null("ElbowPivot") if _upper_arm_pivot else null
 	_forearm_pivot = elbow_pivot.get_node_or_null("ForearmPivot") if elbow_pivot else null
-	
+
 	_wrist_rot_pivot = _forearm_pivot.get_node_or_null("WristRotPivot") if _forearm_pivot else null
 	_wrist_pitch_pivot = _wrist_rot_pivot.get_node_or_null("WristPitchPivot") if _wrist_rot_pivot else null
 	_tool_pivot = _wrist_pitch_pivot.get_node_or_null("ToolPivot") if _wrist_pitch_pivot else null
-	
-	_suction_mesh = _tool_pivot.get_node_or_null("ToolSuction") if _tool_pivot else null
-	_vacuum_area = _tool_pivot.get_node_or_null("VacuumArea") if _tool_pivot else null
+
+	_suction_mesh = _tool_pivot.get_node_or_null("ToolSuction") as MeshInstance3D if _tool_pivot else null
+	_vacuum_area = _tool_pivot.get_node_or_null("VacuumArea") as Area3D if _tool_pivot else null
+
+	if _tool_pivot and _vacuum_area == null:
+		_vacuum_area = _find_vacuum_area_in_attached_tool()
 
 
 func _update_held_object(_delta: float) -> void:
@@ -201,16 +305,14 @@ func _update_held_object(_delta: float) -> void:
 	if not _vacuum_area:
 		return
 
+	var cup_basis := _vacuum_area.global_transform.basis.orthonormalized()
 	var tip_pos := _vacuum_area.global_position
-	var cup_dir := _vacuum_area.global_transform.basis.y.normalized()
-	
+
 	var box_offset := 0.1
 	if _held_object and "size" in _held_object:
 		box_offset = _held_object.size.y * 0.5
-	
-	var target_pos := tip_pos + cup_dir * box_offset
-	_held_rigid_body.global_position = target_pos
-	var cup_basis := _vacuum_area.global_transform.basis.orthonormalized()
+
+	_held_rigid_body.global_position = tip_pos + cup_basis * (_held_object_offset + Vector3(0, box_offset, 0))
 	_held_rigid_body.global_transform.basis = cup_basis * _held_object_basis
 
 
@@ -346,6 +448,7 @@ func solve_ik(target_pos: Vector3, max_iterations: int = 20, tolerance: float = 
 
 func _update_vacuum_state() -> void:
 	_update_vacuum_indicator()
+	_forward_vacuum_to_tool()
 
 	if vacuum_on:
 		_try_pick_up()
@@ -404,8 +507,11 @@ func _attach_object(obj: Node3D) -> void:
 		var cup_basis := _vacuum_area.global_transform.basis.orthonormalized()
 		var obj_basis := rigid_body.global_transform.basis.orthonormalized()
 		_held_object_basis = cup_basis.inverse() * obj_basis
+		var local_pos := cup_basis.inverse() * (rigid_body.global_position - _vacuum_area.global_position)
+		_held_object_offset = Vector3(local_pos.x, 0.0, local_pos.z)
 	else:
 		_held_object_basis = Basis.IDENTITY
+		_held_object_offset = Vector3.ZERO
 	
 	if rigid_body:
 		rigid_body.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC

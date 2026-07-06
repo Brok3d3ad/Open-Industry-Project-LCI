@@ -16,12 +16,18 @@ const EE_COLOR = Color(0.2, 0.9, 0.9)
 const EE_SUBGIZMO_ID = 0
 const TOOL_JOINT_INDEX = 5
 
+const EOAT_COLOR = Color(0.95, 0.6, 0.15)
+const EOAT_FRAME_Y = -0.075
+const EOAT_HANDLE_SIZE_X = 10
+const EOAT_HANDLE_SIZE_Z = 11
+
 var _drag_joint_idx: int = -1
 var _initial_joint_angle: float = 0.0
 var _drag_start_mouse_angle: float = 0.0
 var _pivot_screen_pos: Vector2 = Vector2.ZERO
 
 var _initial_joint_angles: Array = []
+var _initial_eoat_size: float = 0.0
 
 
 func _get_gizmo_name() -> String:
@@ -53,6 +59,13 @@ func _init() -> void:
 		ee_mat.no_depth_test = true
 		ee_mat.render_priority = 10
 
+	create_material("eoat_line", EOAT_COLOR)
+	var eoat_mat = get_material("eoat_line", null)
+	if eoat_mat:
+		eoat_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		eoat_mat.no_depth_test = true
+		eoat_mat.render_priority = 10
+
 
 func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	gizmo.clear()
@@ -61,12 +74,17 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	if node == null:
 		return
 
-	if not node.get("show_gizmos"):
-		return
-
 	if not EditorInterface.get_selection().get_selected_nodes().has(node):
 		return
-	
+
+	if node.get("show_gizmos"):
+		_draw_joints(gizmo, node)
+
+	if node.get("show_eoat_gizmo"):
+		_draw_eoat(gizmo, node)
+
+
+func _draw_joints(gizmo: EditorNode3DGizmo, node: Node3D) -> void:
 	var pivots = [
 		node.get("_base_pivot"),
 		node.get("_upper_arm_pivot"),
@@ -113,6 +131,34 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	ee_lines.append(tip_local + Vector3(0, 0, -cross_size))
 	ee_lines.append(tip_local + Vector3(0, 0, cross_size))
 	gizmo.add_lines(ee_lines, get_material("ee_line", gizmo), false)
+
+
+func _draw_eoat(gizmo: EditorNode3DGizmo, node: Node3D) -> void:
+	var eoat: Node3D = node.call("get_attached_tool")
+	if eoat == null or not ("tool_size_x" in eoat):
+		return
+
+	var half_x: float = eoat.get("tool_size_x") * 0.5
+	var half_z: float = eoat.get("tool_size_z") * 0.5
+	var to_node := node.global_transform.affine_inverse() * eoat.global_transform
+
+	var corners = [
+		Vector3(-half_x, EOAT_FRAME_Y, -half_z),
+		Vector3(half_x, EOAT_FRAME_Y, -half_z),
+		Vector3(half_x, EOAT_FRAME_Y, half_z),
+		Vector3(-half_x, EOAT_FRAME_Y, half_z),
+	]
+	var lines = PackedVector3Array()
+	for i in range(4):
+		lines.append(to_node * corners[i])
+		lines.append(to_node * corners[(i + 1) % 4])
+	gizmo.add_lines(lines, get_material("eoat_line", gizmo), false)
+
+	var handles = PackedVector3Array([
+		to_node * Vector3(half_x, EOAT_FRAME_Y, 0),
+		to_node * Vector3(0, EOAT_FRAME_Y, half_z),
+	])
+	gizmo.add_handles(handles, get_material("handles", gizmo), PackedInt32Array([EOAT_HANDLE_SIZE_X, EOAT_HANDLE_SIZE_Z]))
 
 
 func _get_arc_radius(joint_idx: int, robot_scale: float) -> float:
@@ -164,7 +210,17 @@ func _generate_arc_with_handle(joint_idx: int, pivot: Node3D, robot: Node3D, rad
 	return {"lines": lines, "handle_pos": handle_pos}
 
 
+func _is_eoat_handle(handle_id: int) -> bool:
+	return handle_id == EOAT_HANDLE_SIZE_X or handle_id == EOAT_HANDLE_SIZE_Z
+
+
+func _eoat_size_prop(handle_id: int) -> String:
+	return "tool_size_x" if handle_id == EOAT_HANDLE_SIZE_X else "tool_size_z"
+
+
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool) -> String:
+	if _is_eoat_handle(handle_id):
+		return "EOAT Size X" if handle_id == EOAT_HANDLE_SIZE_X else "EOAT Size Z"
 	return "J%d" % (handle_id + 1)
 
 
@@ -172,7 +228,10 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return 0.0
-	
+
+	if _is_eoat_handle(handle_id):
+		return node.get(_eoat_size_prop(handle_id))
+
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 	return node.get(angle_props[handle_id])
 
@@ -181,7 +240,11 @@ func _begin_handle_action(gizmo: EditorNode3DGizmo, handle_id: int, secondary: b
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
+	if _is_eoat_handle(handle_id):
+		_initial_eoat_size = node.get(_eoat_size_prop(handle_id))
+		return
+
 	_drag_joint_idx = handle_id
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 	_initial_joint_angle = node.get(angle_props[handle_id])
@@ -193,7 +256,11 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
+	if _is_eoat_handle(handle_id):
+		_set_eoat_handle(node, handle_id, camera, screen_pos)
+		return
+
 	var pivots = [
 		node.get("_base_pivot"),
 		node.get("_upper_arm_pivot"),
@@ -234,7 +301,31 @@ func _set_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, came
 	
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
 	node.set(angle_props[handle_id], new_angle)
-	
+
+	node.update_gizmos()
+
+
+func _set_eoat_handle(node: Node3D, handle_id: int, camera: Camera3D, screen_pos: Vector2) -> void:
+	var eoat: Node3D = node.call("get_attached_tool")
+	if eoat == null:
+		return
+
+	var axis_local := Vector3.RIGHT if handle_id == EOAT_HANDLE_SIZE_X else Vector3.BACK
+	var origin := eoat.global_transform * Vector3(0, EOAT_FRAME_Y, 0)
+	var axis_vec := eoat.global_transform.basis * axis_local
+	var axis_scale := axis_vec.length()
+	if axis_scale < 0.0001:
+		return
+	var axis_dir := axis_vec / axis_scale
+
+	var ray_from := camera.project_ray_origin(screen_pos)
+	var ray_dir := camera.project_ray_normal(screen_pos)
+	var points := Geometry3D.get_closest_points_between_segments(
+		origin - axis_dir * 100.0, origin + axis_dir * 100.0,
+		ray_from, ray_from + ray_dir * 1000.0)
+
+	var dist := (points[0] - origin).dot(axis_dir)
+	node.set(_eoat_size_prop(handle_id), absf(dist) * 2.0 / axis_scale)
 	node.update_gizmos()
 
 
@@ -242,9 +333,22 @@ func _commit_handle(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool, r
 	var node = gizmo.get_node_3d()
 	if node == null:
 		return
-	
+
+	if _is_eoat_handle(handle_id):
+		var prop := _eoat_size_prop(handle_id)
+		if cancel:
+			node.set(prop, _initial_eoat_size)
+		else:
+			var eoat_undo_redo = EditorInterface.get_editor_undo_redo()
+			eoat_undo_redo.create_action("Resize Robot EOAT")
+			eoat_undo_redo.add_do_property(node, prop, node.get(prop))
+			eoat_undo_redo.add_undo_property(node, prop, _initial_eoat_size)
+			eoat_undo_redo.commit_action()
+		node.update_gizmos()
+		return
+
 	var angle_props = ["j1_angle", "j2_angle", "j3_angle", "j4_angle", "j5_angle", "j6_angle"]
-	
+
 	if cancel:
 		node.set(angle_props[handle_id], _initial_joint_angle)
 	else:
