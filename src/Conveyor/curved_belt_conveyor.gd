@@ -554,11 +554,7 @@ func _create_end_body(body_name: String) -> StaticBody3D:
 	body.physics_material_override = physics_material
 	var col := CollisionShape3D.new()
 	col.name = "CollisionShape3D"
-	var cylinder := CylinderShape3D.new()
-	cylinder.radius = height / 2.0
-	cylinder.height = width
-	col.shape = cylinder
-	col.rotation.x = PI / 2.0
+	col.shape = BoxShape3D.new()
 	body.add_child(col)
 	return body
 
@@ -569,19 +565,31 @@ func _update_belt_ends() -> void:
 
 	var radians := deg_to_rad(conveyor_angle)
 	var avg_radius := inner_radius + width / 2.0
-	var roller_radius := height / 2.0
+	var pulley_radius := height / 2.0
 
 	_end_body1.position = Vector3(-sin(radians) * avg_radius, -size.y / 2.0, cos(radians) * avg_radius)
 	_end_body1.rotation.y = -radians
 	_end_body2.position = Vector3(0, -size.y / 2.0, avg_radius)
 	_end_body2.rotation.y = 0
 
-	for body: StaticBody3D in [_end_body1, _end_body2]:
+	# Flat belt-level aprons spanning the end-pulley footprint — same idea as the
+	# straight conveyor's run boxes extended by pulley radius (BeltPathCollision),
+	# so small packages keep a surface across the seam to the next conveyor
+	# instead of wedging into the dip over a round end roller.
+	# Outward (away from the arc) is local -X on the head body, +X on the tail body.
+	for i in range(2):
+		var body: StaticBody3D = [_end_body1, _end_body2][i]
+		var outward_sign: float = -1.0 if i == 0 else 1.0
 		var col := body.get_node("CollisionShape3D") as CollisionShape3D
-		if col and col.shape is CylinderShape3D:
-			var cyl := col.shape as CylinderShape3D
-			cyl.radius = roller_radius
-			cyl.height = width
+		if col == null:
+			continue
+		var box := col.shape as BoxShape3D
+		if box == null:
+			box = BoxShape3D.new()
+			col.shape = box
+			col.rotation = Vector3.ZERO
+		box.size = Vector3(pulley_radius, height, width)
+		col.position = Vector3(outward_sign * pulley_radius * 0.5, 0.0, 0.0)
 
 
 func _update_side_guards() -> void:
@@ -1136,15 +1144,11 @@ func _physics_process(_delta: float) -> void:
 	if not is_equal_approx(_angular_speed, _last_pushed_angular_speed):
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
-		var roller_radius: float = height / 2.0
 		for body: StaticBody3D in [_end_body1, _end_body2]:
 			if not body:
 				continue
-			if _linear_speed != 0:
-				var local_front: Vector3 = body.global_transform.basis.z.normalized()
-				body.constant_angular_velocity = local_front * _linear_speed / roller_radius
-			else:
-				body.constant_angular_velocity = Vector3.ZERO
+			# Belt tangent is local -X on both end bodies (see _update_belt_ends).
+			body.constant_linear_velocity = -body.global_transform.basis.x.normalized() * _linear_speed
 		_last_pushed_angular_speed = _angular_speed
 
 
@@ -1188,7 +1192,7 @@ func _on_simulation_ended() -> void:
 		_sb.constant_angular_velocity = Vector3.ZERO
 	for body: StaticBody3D in [_end_body1, _end_body2]:
 		if body:
-			body.constant_angular_velocity = Vector3.ZERO
+			body.constant_linear_velocity = Vector3.ZERO
 	# We just zeroed the body velocities, so the cache no longer reflects what's
 	# applied. Reset it (NAN) so the next run always re-pushes — otherwise a
 	# stop/start (or scene reload) with an unchanged speed skips the push and
