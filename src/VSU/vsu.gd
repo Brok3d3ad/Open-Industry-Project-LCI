@@ -6,20 +6,23 @@ extends BeltConveyor
 ##
 ## The deck is the stock `BeltConveyor` — same look, resize handles, snapping and
 ## speed/running comms. Differences: it has NO support legs (the whole Legs section
-## is forced off and hidden), and the deck incline is driven by two flags —
-## [member incline_up] / [member incline_down]. Toggle them in the inspector, or
-## let the PLC drive them through the BOOL read tags below (Enable Comms + running
-## simulation). The deck ramps toward the target angle at [member tilt_speed];
-## both flags off levels the deck back to 0°.
+## is forced off and hidden), and the deck is TWO-POSITION — always commanded to
+## either UP (+[member up_angle]) or DOWN (-[member down_angle]), never level.
+## [member incline_up] / [member incline_down] are the commands: toggle them in the
+## inspector, or let the PLC drive them through the BOOL read tags below (Enable
+## Comms + running simulation). Up wins while both are set; with both off the deck
+## holds its last commanded position. A fresh unit starts DOWN. The deck ramps
+## toward the target angle at [member tilt_speed].
 ##
 ## The tilt is applied as a RIGID ROTATION of the node about its tail pivot — not
 ## via the `incline` segment property. Writing `incline` regenerates the belt mesh,
 ## collision shapes, rails and guards, which at animation rate collapses the frame
 ## rate; rotating the node keeps all geometry cached.
 
-## Tilt the deck up to [member up_angle]. Wins over [member incline_down] when both are set.
+## Command: send the deck UP to [member up_angle]. Wins over [member incline_down]
+## when both are set; turning it off leaves the deck up until DOWN is commanded.
 @export var incline_up: bool = false
-## Tilt the deck down to -[member down_angle].
+## Command: send the deck DOWN to -[member down_angle].
 @export var incline_down: bool = false
 ## Deck angle while [member incline_up] is on, degrees.
 @export_range(0.0, 45.0, 0.1, "suffix:°") var up_angle: float = 12.0
@@ -43,6 +46,9 @@ extends BeltConveyor
 ## saved mid-tilt (or left raised by the PLC) resumes from the right baseline.
 @export_storage var _tilt_deg: float = 0.0
 
+## Latched position command — the deck only ever targets UP or DOWN.
+@export_storage var _target_up: bool = false
+
 ## The VSU carries no legs; the inherited leg properties are hidden too.
 const _HIDDEN_LEG_PROPS: PackedStringArray = [
 	"legs_enabled", "floor_plane", "leg_model_scene",
@@ -65,11 +71,11 @@ func _init() -> void:
 ## tail pivot (local Z). Never touches `incline` — see the class doc.
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
-	var target: float = 0.0
 	if incline_up:
-		target = up_angle
+		_target_up = true
 	elif incline_down:
-		target = -down_angle
+		_target_up = false
+	var target: float = up_angle if _target_up else -down_angle
 	if absf(_tilt_deg - target) < 0.0005:
 		return
 	var next: float = move_toward(_tilt_deg, target, tilt_speed * delta)
