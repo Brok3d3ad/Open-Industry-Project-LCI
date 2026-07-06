@@ -18,27 +18,84 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		roller_class = value
 		_request_rebuild()
 
-## Length of the LEFT (-Z) side along the flow axis, in meters. Together with
-## [member length_right] this sizes each long edge independently; the centerline length
-## ([code]size.x[/code]) and downstream splay ([member angle_downstream]) are derived.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
+## Length of the LEFT (-Z) side along the flow axis, in meters. Internal facade —
+## the inspector exposes [member short_side_length] / [member long_side_length].
+var length: float = 2.0:
 	set(value):
 		_set_side_lengths(value, length_right)
 	get:
 		return size.x - tan(angle_downstream) * (size.z * 0.5)
 
 ## Length of the RIGHT (+Z) side along the flow axis, in meters. See [member length].
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length_right: float = 2.0:
+var length_right: float = 2.0:
 	set(value):
 		_set_side_lengths(length, value)
 	get:
 		return size.x + tan(angle_downstream) * (size.z * 0.5)
 
-@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
+## Width of the downstream (head) end cut, in meters — as measured on a layout
+## drawing. Independent of the other three shape values; the perpendicular
+## width and both end splays are derived (see [method _apply_drawing_params]).
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.76:
 	set(value):
-		size = Vector3(size.x, size.y, value)
+		_apply_drawing_params(maxf(0.1, value), edge_length, short_side_length, long_side_length)
 	get:
-		return size.z
+		return size.z / cos(angle_downstream)
+
+## Length of the upstream (tail) end cut — the slanted edge along the line the
+## spur merges with or diverts from, in meters.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var edge_length: float = 1.524:
+	set(value):
+		_apply_drawing_params(width, maxf(0.1, value), short_side_length, long_side_length)
+	get:
+		return size.z / cos(angle_upstream)
+
+## Length of the SHORT one of the two parallel sides, in meters.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var short_side_length: float = 1.56:
+	set(value):
+		_apply_drawing_params(width, edge_length, maxf(0.0, value), long_side_length)
+	get:
+		return minf(_side_len_left(), _side_len_right())
+
+## Length of the LONG one of the two parallel sides, in meters.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var long_side_length: float = 2.44:
+	set(value):
+		_apply_drawing_params(width, edge_length, short_side_length, maxf(0.0, value))
+	get:
+		return maxf(_side_len_left(), _side_len_right())
+
+
+## Geometric side lengths including both end splays (left = -Z, right = +Z).
+func _side_len_left() -> float:
+	return size.x + size.z * 0.5 * (tan(angle_upstream) - tan(angle_downstream))
+
+
+func _side_len_right() -> float:
+	return size.x + size.z * 0.5 * (tan(angle_downstream) - tan(angle_upstream))
+
+
+## Solve the stored model (perpendicular width `size.z`, end splays, centerline
+## `size.x`) from the four drawing measurements. The parallel sides are the
+## long/short sides; `edge` is the tail cut and `w_cut` the head cut. With
+## k = long - short: E² = w² + δt², W² = w² + (δt + k)², so all four values are
+## independent and honored exactly (impossible quartets clamp to minimum width).
+func _apply_drawing_params(w_cut: float, edge: float, short_len: float, long_len: float) -> void:
+	var k: float = long_len - short_len
+	var w_perp: float
+	var delta_tail: float
+	if absf(k) < 1.0e-6:
+		# Equal sides: both cuts share one offset; the edge value wins.
+		w_perp = maxf(0.1, minf(edge, w_cut))
+		delta_tail = sqrt(maxf(0.0, edge * edge - w_perp * w_perp))
+	else:
+		delta_tail = (w_cut * w_cut - edge * edge - k * k) / (2.0 * k)
+		w_perp = sqrt(maxf(0.01, edge * edge - delta_tail * delta_tail))
+	var delta_head: float = delta_tail + k
+	# Preserve which physical side is currently the long one.
+	var flip: float = -1.0 if _side_len_left() > _side_len_right() else 1.0
+	angle_upstream = atan(flip * delta_tail / w_perp)
+	angle_downstream = atan(flip * delta_head / w_perp)
+	size = Vector3((short_len + long_len) * 0.5, size.y, w_perp)
 
 @export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
 	set(value):
@@ -328,8 +385,11 @@ func _validate_property(property: Dictionary) -> void:
 	if prop_name == "speed_fpm":
 		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
 		return
-	if prop_name in ["length", "length_right", "width", "height"]:
+	if prop_name in ["width", "height", "edge_length", "short_side_length", "long_side_length"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
+		return
+	if prop_name in ["angle_downstream", "angle_upstream"]:
+		property["usage"] = PROPERTY_USAGE_NO_EDITOR
 		return
 	if prop_name == "size":
 		property["usage"] = PROPERTY_USAGE_STORAGE
@@ -420,7 +480,7 @@ func _notification(what: int) -> void:
 
 
 func _get_scale_warning_text() -> String:
-	return "Use `length` / `width` / `height` instead of scale."
+	return "Use `width` / `edge_length` / `short_side_length` / `long_side_length` instead of scale."
 
 
 func _get_active_resize_handle_ids() -> PackedInt32Array:
