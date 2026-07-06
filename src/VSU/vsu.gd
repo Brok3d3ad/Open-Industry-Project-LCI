@@ -11,6 +11,12 @@ extends BeltConveyor
 ## the inspector, or let the PLC drive them through the BOOL read tags below
 ## (Enable Comms + running simulation). The deck ramps toward the target angle at
 ## [member tilt_speed]; both flags off levels the deck back to 0°.
+##
+## The tilt is applied as a RIGID ROTATION of the node about its tail pivot — not
+## via the `incline` segment property. Writing `incline` regenerates the belt mesh,
+## collision shapes, rails and guards, which at animation rate collapses the frame
+## rate; rotating the node keeps all geometry cached, and the legs already re-plant
+## themselves cheaply on transform changes.
 
 ## Tilt the deck up to [member up_angle]. Wins over [member incline_down] when both are set.
 @export var incline_up: bool = false
@@ -34,6 +40,10 @@ extends BeltConveyor
 ## BOOL read tag driving [member incline_down].
 @export var incline_down_tag_name: String = ""
 
+## Deck tilt currently applied to the node's basis, degrees. Persisted so a scene
+## saved mid-tilt (or left raised by the PLC) resumes from the right baseline.
+@export_storage var _tilt_deg: float = 0.0
+
 var _incline_up_tag := OIPCommsTag.new()
 var _incline_down_tag := OIPCommsTag.new()
 
@@ -43,7 +53,8 @@ func _init() -> void:
 	leg_model_scene = preload("res://parts/VSULeg.tscn")
 
 
-## Ramp the inherited `incline` (segment 0 tilt) toward the flags' target angle.
+## Ramp the deck toward the flags' target angle by rotating the node about its
+## tail pivot (local Z). Never touches `incline` — see the class doc.
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	var target: float = 0.0
@@ -51,9 +62,13 @@ func _physics_process(delta: float) -> void:
 		target = up_angle
 	elif incline_down:
 		target = -down_angle
-	if absf(incline - target) < 0.001:
+	if absf(_tilt_deg - target) < 0.0005:
 		return
-	incline = move_toward(incline, target, tilt_speed * delta)
+	var next: float = move_toward(_tilt_deg, target, tilt_speed * delta)
+	# Orthonormalize so FP drift never trips the ResizableNode3D scale slam.
+	var tilted: Basis = (transform.basis * Basis(Vector3(0, 0, 1), deg_to_rad(next - _tilt_deg))).orthonormalized()
+	transform = Transform3D(tilted, transform.origin)
+	_tilt_deg = next
 
 
 #region Communications -------------------------------------------------------------
