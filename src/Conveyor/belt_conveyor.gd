@@ -567,12 +567,22 @@ func get_snap_features() -> Array:
 	var first_start_x: float = _path.runs[0].start_xform.origin.x
 	var last_run: BeltPath.Run = _path.runs[_path.runs.size() - 1]
 	var x_end: float = (last_run.start_xform * Vector3(maxf(0.0, last_run.effective_length), 0, 0)).x
+	# Sensor-mount span: pulley outer edge inset by the standard end margin on
+	# each side, so photoeyes can sit over the pulley wraps but not at the seam.
+	var mount_x_min: float = first_start_x - pulley_radius + ConveyorSnapFeatures.GUARD_MOUNT_END_MARGIN
+	var mount_x_max: float = x_end + pulley_radius - ConveyorSnapFeatures.GUARD_MOUNT_END_MARGIN
+	if mount_x_min > mount_x_max:
+		var mount_mid: float = (mount_x_min + mount_x_max) * 0.5
+		mount_x_min = mount_mid
+		mount_x_max = mount_mid
 	features.append({
 		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
 		"kind": &"straight_sideguard_left",
 		"seg_start": Vector3(first_start_x, 0.0, -half_w),
 		"seg_end": Vector3(x_end, 0.0, -half_w),
 		"seg_outward_local": Vector3(0, 0, -1),
+		"mount_seg_start": Vector3(mount_x_min, 0.0, -half_w),
+		"mount_seg_end": Vector3(mount_x_max, 0.0, -half_w),
 	})
 	features.append({
 		"shape": ConveyorSnapFeatures.Shape.SEGMENT,
@@ -580,6 +590,8 @@ func get_snap_features() -> Array:
 		"seg_start": Vector3(first_start_x, 0.0, half_w),
 		"seg_end": Vector3(x_end, 0.0, half_w),
 		"seg_outward_local": Vector3(0, 0, 1),
+		"mount_seg_start": Vector3(mount_x_min, 0.0, half_w),
+		"mount_seg_end": Vector3(mount_x_max, 0.0, half_w),
 	})
 	return features
 

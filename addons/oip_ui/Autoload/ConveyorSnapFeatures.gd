@@ -10,6 +10,9 @@ const BLADE_STOP_TARGET_LOCAL_Y: float = -0.188
 const CHAIN_TRANSFER_TARGET_LOCAL_Y: float = -0.05
 const SENSOR_GUARD_OFFSET: float = 0.02
 const SENSOR_GUARD_LIFT: float = 0.06
+## Sensors may mount along the full conveyor span (pulley edge to pulley edge)
+## minus this end margin (6 in), instead of only the guard segment.
+const GUARD_MOUNT_END_MARGIN: float = 0.1524
 
 enum Shape { POINT, SEGMENT, TRACK }
 
@@ -199,8 +202,15 @@ static func _align(selected: Node3D, target: Node3D, sf: Dictionary, tf: Diction
 
 static func _align_point_to_segment(selected: Node3D, target: Node3D, sf: Dictionary, tf: Dictionary) -> Dictionary:
 	var target_xform: Transform3D = target.global_transform
-	var seg_start_world: Vector3 = target_xform * tf.seg_start
-	var seg_end_world: Vector3 = target_xform * tf.seg_end
+	# Mount-span clamp: features may expose a wider span (e.g. out to the pulley
+	# edges minus GUARD_MOUNT_END_MARGIN) for parts that opt in via use_mount_span.
+	var clamp_start: Vector3 = tf.seg_start
+	var clamp_end: Vector3 = tf.seg_end
+	if sf.get(&"use_mount_span", false) and tf.has(&"mount_seg_start") and tf.has(&"mount_seg_end"):
+		clamp_start = tf.mount_seg_start
+		clamp_end = tf.mount_seg_end
+	var seg_start_world: Vector3 = target_xform * clamp_start
+	var seg_end_world: Vector3 = target_xform * clamp_end
 	var contact: Vector3 = _closest_point_on_segment(
 		ConveyorSnapping.get_selected_xform(selected).origin, seg_start_world, seg_end_world
 	)
