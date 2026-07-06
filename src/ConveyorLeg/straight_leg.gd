@@ -38,9 +38,6 @@ const BOLT_HEIGHT: float = 0.011
 const BOLT_INSET: float = 0.035
 const CLAMP_BOLT_X: float = 0.05
 
-const SIDE_MOUNT_GAP: float = 0.006
-const SIDE_MOUNT_RISE: float = 0.35
-
 const MIN_DIM: float = 1.0e-3
 
 @export var clamp_enabled: bool = true:
@@ -57,17 +54,6 @@ const MIN_DIM: float = 1.0e-3
 		if single_post == value:
 			return
 		single_post = value
-		if is_node_ready():
-			_built_height = -1.0
-			_apply_scale()
-
-## Mount the posts on the OUTSIDE of the deck, running up its side faces, instead
-## of underneath it (used by the `VSU` leg, `parts/VSULeg.tscn`).
-@export var side_mount: bool = false:
-	set(value):
-		if side_mount == value:
-			return
-		side_mount = value
 		if is_node_ready():
 			_built_height = -1.0
 			_apply_scale()
@@ -178,61 +164,33 @@ func _rebuild() -> void:
 		mesh.surface_set_material(1, _bolt_material)
 
 	_structure.mesh = mesh
-	_structure.position.z = -_post_z_center() if single_post else 0.0
+	_structure.position.z = -(_half_width + POST_EDGE_OVERHANG - _post_depth() * 0.5) if single_post else 0.0
 
 
 # Shrink the depth on narrow conveyors so the two posts keep a gap instead of merging.
-# Side-mount posts sit outboard and can never merge — they keep the full depth.
 func _post_depth() -> float:
-	if side_mount:
-		return POST_DEPTH
 	return minf(POST_DEPTH, maxf(_half_width + POST_EDGE_OVERHANG - MIN_POST_GAP * 0.5, 0.04))
 
 
-# Post Z extents. Normal legs tuck the posts just under the deck edge; side-mount
-# pushes them outboard of the deck side face.
-func _post_z_inner() -> float:
-	if side_mount:
-		return _half_width + SIDE_MOUNT_GAP
-	return _half_width + POST_EDGE_OVERHANG - _post_depth()
-
-
-func _post_z_outer() -> float:
-	if side_mount:
-		return _half_width + SIDE_MOUNT_GAP + _post_depth()
-	return _half_width + POST_EDGE_OVERHANG
-
-
-func _post_z_center() -> float:
-	return (_post_z_inner() + _post_z_outer()) * 0.5
-
-
-# Side-mount posts keep rising past the deck bottom to grab its side face.
-func _post_top() -> float:
-	if side_mount:
-		return _height + SIDE_MOUNT_RISE
-	return _height
-
-
 func _add_post(st: SurfaceTool, side: float) -> void:
-	var outer_z: float = side * _post_z_outer()
-	var inner_z: float = side * _post_z_inner()
+	var outer_z: float = side * (_half_width + POST_EDGE_OVERHANG)
+	var inner_z: float = side * (_half_width + POST_EDGE_OVERHANG - _post_depth())
 	var y0: float = FOOT_FLOOR_GAP + FOOT_PLATE_THICKNESS * 0.5
 	_add_box(st,
 		Vector3(-POST_HALF_LEN, y0, minf(outer_z, inner_z)),
-		Vector3(POST_HALF_LEN, _post_top(), maxf(outer_z, inner_z)))
+		Vector3(POST_HALF_LEN, _height, maxf(outer_z, inner_z)))
 
 
 func _add_collar(st: SurfaceTool, side: float) -> void:
-	var outer_z: float = side * (_post_z_outer() + COLLAR_OVERHANG)
-	var embed_z: float = side * (_post_z_outer() - COLLAR_EMBED)
+	var outer_z: float = side * (_half_width + POST_EDGE_OVERHANG + COLLAR_OVERHANG)
+	var embed_z: float = side * (_half_width + POST_EDGE_OVERHANG - COLLAR_EMBED)
 	_add_box(st,
-		Vector3(-(POST_HALF_LEN - COLLAR_EMBED), maxf(0.0, _post_top() - COLLAR_HEIGHT), minf(outer_z, embed_z)),
-		Vector3(POST_HALF_LEN - COLLAR_EMBED, _post_top() + COLLAR_RISE, maxf(outer_z, embed_z)))
+		Vector3(-(POST_HALF_LEN - COLLAR_EMBED), maxf(0.0, _height - COLLAR_HEIGHT), minf(outer_z, embed_z)),
+		Vector3(POST_HALF_LEN - COLLAR_EMBED, _height + COLLAR_RISE, maxf(outer_z, embed_z)))
 
 
 func _add_foot_plate(st: SurfaceTool, side: float) -> void:
-	var z_c: float = side * _post_z_center()
+	var z_c: float = side * (_half_width + POST_EDGE_OVERHANG - _post_depth() * 0.5)
 	_add_box(st,
 		Vector3(-FOOT_PLATE_HALF_LEN, FOOT_FLOOR_GAP, z_c - FOOT_PLATE_HALF_DEPTH),
 		Vector3(FOOT_PLATE_HALF_LEN, FOOT_FLOOR_GAP + FOOT_PLATE_THICKNESS, z_c + FOOT_PLATE_HALF_DEPTH))
@@ -248,7 +206,7 @@ func _sleeve_y1() -> float:
 
 func _add_sleeve(st: SurfaceTool, side: float) -> void:
 	var depth: float = _post_depth()
-	var z_c: float = side * _post_z_center()
+	var z_c: float = side * (_half_width + POST_EDGE_OVERHANG - depth * 0.5)
 	var half_len: float = POST_HALF_LEN + SLEEVE_MARGIN
 	var half_dep: float = depth * 0.5 + SLEEVE_MARGIN
 	_add_box(st,
@@ -257,7 +215,7 @@ func _add_sleeve(st: SurfaceTool, side: float) -> void:
 
 
 func _add_sleeve_bolts(st: SurfaceTool, side: float) -> void:
-	var z_face: float = side * (_post_z_outer() + SLEEVE_MARGIN)
+	var z_face: float = side * (_half_width + POST_EDGE_OVERHANG + SLEEVE_MARGIN)
 	var axis := Vector3(0.0, 0.0, side)
 	var y_mid: float = (_sleeve_y0() + _sleeve_y1()) * 0.5
 	var z0: float = z_face - side * BOLT_HEIGHT * 0.4
@@ -265,7 +223,7 @@ func _add_sleeve_bolts(st: SurfaceTool, side: float) -> void:
 
 
 func _add_foot_bolts(st: SurfaceTool, side: float) -> void:
-	var z_c: float = side * _post_z_center()
+	var z_c: float = side * (_half_width + POST_EDGE_OVERHANG - _post_depth() * 0.5)
 	var y_base: float = FOOT_FLOOR_GAP + FOOT_PLATE_THICKNESS
 	var dx: float = FOOT_PLATE_HALF_LEN - BOLT_INSET
 	var dz: float = FOOT_PLATE_HALF_DEPTH - BOLT_INSET
@@ -328,7 +286,7 @@ func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, n: Vector3) -
 func _add_braces(st: SurfaceTool) -> void:
 	var count: int = maxi(floori(_height / BRACE_SPACING), 1)
 	var spacing: float = _height / float(count + 1)
-	var z_span: float = maxf(_post_z_inner() + BRACE_POST_OVERLAP, BRACE_POST_OVERLAP)
+	var z_span: float = maxf(_half_width + POST_EDGE_OVERHANG - _post_depth() + BRACE_POST_OVERLAP, BRACE_POST_OVERLAP)
 	var sleeve_top: float = _sleeve_y1()
 	for i in count:
 		var y: float = spacing * (i + 1)

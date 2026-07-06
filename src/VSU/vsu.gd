@@ -2,32 +2,27 @@
 class_name VSU
 extends BeltConveyor
 
-## Belt conveyor variant with side-mounted legs and a flag-driven incline.
+## Belt conveyor variant with no legs and a flag-driven incline.
 ##
 ## The deck is the stock `BeltConveyor` — same look, resize handles, snapping and
-## speed/running comms. Differences: the support legs mount OUTBOARD (posts run up
-## the outside faces of the deck instead of underneath it), and the deck incline is
-## driven by two flags — [member incline_up] / [member incline_down]. Toggle them in
-## the inspector, or let the PLC drive them through the BOOL read tags below
-## (Enable Comms + running simulation). The deck ramps toward the target angle at
-## [member tilt_speed]; both flags off levels the deck back to 0°.
+## speed/running comms. Differences: it has NO support legs (the whole Legs section
+## is forced off and hidden), and the deck incline is driven by two flags —
+## [member incline_up] / [member incline_down]. Toggle them in the inspector, or
+## let the PLC drive them through the BOOL read tags below (Enable Comms + running
+## simulation). The deck ramps toward the target angle at [member tilt_speed];
+## both flags off levels the deck back to 0°.
 ##
 ## The tilt is applied as a RIGID ROTATION of the node about its tail pivot — not
 ## via the `incline` segment property. Writing `incline` regenerates the belt mesh,
 ## collision shapes, rails and guards, which at animation rate collapses the frame
-## rate; rotating the node keeps all geometry cached, and the legs already re-plant
-## themselves cheaply on transform changes.
+## rate; rotating the node keeps all geometry cached.
 
 ## Tilt the deck up to [member up_angle]. Wins over [member incline_down] when both are set.
 @export var incline_up: bool = false
 ## Tilt the deck down to -[member down_angle].
 @export var incline_down: bool = false
-## Deck angle while [member incline_up] is on, degrees. The legs are planted for
-## this pose, so changing it re-plants them.
-@export_range(0.0, 45.0, 0.1, "suffix:°") var up_angle: float = 12.0:
-	set(value):
-		up_angle = value
-		_request_legs_refresh()
+## Deck angle while [member incline_up] is on, degrees.
+@export_range(0.0, 45.0, 0.1, "suffix:°") var up_angle: float = 12.0
 ## Deck angle while [member incline_down] is on, degrees (tilts below level).
 @export_range(0.0, 45.0, 0.1, "suffix:°") var down_angle: float = 12.0
 ## Ramp rate toward the target incline, degrees per second.
@@ -48,13 +43,22 @@ extends BeltConveyor
 ## saved mid-tilt (or left raised by the PLC) resumes from the right baseline.
 @export_storage var _tilt_deg: float = 0.0
 
+## The VSU carries no legs; the inherited leg properties are hidden too.
+const _HIDDEN_LEG_PROPS: PackedStringArray = [
+	"legs_enabled", "floor_plane", "leg_model_scene",
+	"tail_end_leg_enabled", "tail_end_attachment_offset", "tail_end_leg_clearance",
+	"head_end_leg_enabled", "head_end_attachment_offset", "head_end_leg_clearance",
+	"middle_legs_enabled", "middle_legs_spacing",
+	"exclusion_start", "exclusion_end",
+]
+
 var _incline_up_tag := OIPCommsTag.new()
 var _incline_down_tag := OIPCommsTag.new()
 
 
 func _init() -> void:
 	super._init()
-	leg_model_scene = preload("res://parts/VSULeg.tscn")
+	legs_enabled = false
 
 
 ## Ramp the deck toward the flags' target angle by rotating the node about its
@@ -73,23 +77,6 @@ func _physics_process(delta: float) -> void:
 	var tilted: Basis = (transform.basis * Basis(Vector3(0, 0, 1), deg_to_rad(next - _tilt_deg))).orthonormalized()
 	transform = Transform3D(tilted, transform.origin)
 	_tilt_deg = next
-
-
-#region Legs -----------------------------------------------------------------------
-## The legs are STATIONARY: they plant against the pose the deck has at full
-## nose-up tilt and stay put while the deck swings between them. Both hooks are
-## expressed relative to the live transform minus the applied tilt, so they don't
-## change while the deck animates — the legs never move or resize mid-tilt.
-func _legs_deck_xform() -> Transform3D:
-	var xf: Transform3D = global_transform if is_inside_tree() else Transform3D.IDENTITY
-	var up: Basis = (xf.basis * Basis(Vector3(0, 0, 1), deg_to_rad(up_angle - _tilt_deg))).orthonormalized()
-	return Transform3D(up, xf.origin)
-
-
-## Cancel the node tilt so the posts stay world-vertical while the deck rotates.
-func _legs_local_z_rot() -> float:
-	return deg_to_rad(-_tilt_deg)
-#endregion
 
 
 #region Communications -------------------------------------------------------------
@@ -123,6 +110,9 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 
 func _validate_property(property: Dictionary) -> void:
 	super._validate_property(property)
+	if property.name in _HIDDEN_LEG_PROPS:
+		property.usage = PROPERTY_USAGE_NO_EDITOR
+		return
 	if OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "incline_up_tag_name"):
 		return
 	OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "incline_down_tag_name")
