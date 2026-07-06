@@ -1,0 +1,12 @@
+[gd_scene format=4 uid="uid://bvsu3lift7q4k"]
+
+[ext_resource type="Script" uid="uid://dvsu5tilt6m1p" path="res://src/VSU/vsu.gd" id="1_vsu"]
+[ext_resource type="Script" uid="uid://dfskhbqfkklts" path="res://src/Conveyor/belt_segment.gd" id="2_seg"]
+
+[sub_resource type="Resource" id="Resource_vsuseg"]
+resource_local_to_scene = true
+script = ExtResource("2_seg")
+
+[node name="VSU" type="Node3D" unique_id=481226903]
+script = ExtResource("1_vsu")
+segments = Array[ExtResource("2_seg")]([SubResource("Resource_vsuseg")])
