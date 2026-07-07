@@ -55,6 +55,21 @@ var length_right: float = 2.0:
 	get:
 		return maxf(_side_len_left(), _side_len_right())
 
+## Mirror the footprint across the flow axis, swapping the short and long sides.
+## Derived from the splay-angle signs; nothing extra is stored.
+@export var mirrored: bool = false:
+	set(value):
+		if value == mirrored:
+			return
+		angle_upstream = -angle_upstream
+		angle_downstream = -angle_downstream
+	get:
+		var left_len: float = _side_len_left()
+		var right_len: float = _side_len_right()
+		if absf(left_len - right_len) > 1.0e-6:
+			return left_len > right_len
+		return angle_upstream < 0.0
+
 
 ## Geometric side lengths including both end splays (left = -Z, right = +Z).
 func _side_len_left() -> float:
@@ -83,7 +98,7 @@ func _apply_drawing_params(w_cut: float, edge: float, short_len: float, long_len
 		w_perp = sqrt(maxf(0.01, edge * edge - delta_tail * delta_tail))
 	var delta_head: float = delta_tail + k
 	# Preserve which physical side is currently the long one.
-	var flip: float = -1.0 if _side_len_left() > _side_len_right() else 1.0
+	var flip: float = -1.0 if mirrored else 1.0
 	angle_upstream = atan(flip * delta_tail / w_perp)
 	angle_downstream = atan(flip * delta_head / w_perp)
 	size = Vector3((short_len + long_len) * 0.5, size.y, w_perp)
@@ -138,6 +153,16 @@ func _apply_drawing_params(w_cut: float, edge: float, short_len: float, long_len
 			_running_tag.write_bit(value != 0.0)
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
+
+## Reverse the conveying direction (flow runs head to tail) without editing
+## [member speed] — keeps PLC speed tags positive.
+@export var flip_direction: bool = false:
+	set(value):
+		if value == flip_direction:
+			return
+		flip_direction = value
+		_applied_speed = INF
+		_update_flow_arrow()
 
 ## Show a floating label at the conveyor's center displaying the current speed.
 @export var show_speed_label: bool = false:
@@ -387,7 +412,7 @@ func _validate_property(property: Dictionary) -> void:
 	if prop_name == "speed_fpm":
 		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
 		return
-	if prop_name in ["width", "height", "edge_length", "short_side_length", "long_side_length"]:
+	if prop_name in ["width", "height", "edge_length", "short_side_length", "long_side_length", "mirrored"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
 	if prop_name in ["angle_downstream", "angle_upstream"]:
@@ -438,9 +463,17 @@ func _get_editor_gizmo_pivot_offset() -> Vector3:
 	return Vector3(size.x * 0.5, 0.0, 0.0)
 
 
+## True footprint extents: the slanted end cuts overhang the centerline span
+## [0, size.x] by half-width times their slope. Snap features anchor here so an
+## end-snapped spur meets its neighbor at the slant corner instead of overlapping.
 var local_bbox: AABB:
 	get:
-		return _get_resize_local_bounds(size)
+		var hw: float = size.z * 0.5
+		var back_x: float = minf(0.0, -hw * absf(tan(angle_upstream)))
+		var front_x: float = size.x + maxf(0.0, hw * absf(tan(angle_downstream)))
+		return AABB(
+				Vector3(back_x, -size.y, -hw),
+				Vector3(front_x - back_x, size.y, size.z))
 
 
 func _notification(what: int) -> void:
@@ -815,15 +848,20 @@ func _rebuild_gap_fill() -> void:
 	var half_w: float = size.z * 0.5
 	var tan_ds: float = tan(angle_downstream)
 	var tan_us: float = tan(angle_upstream)
-	# Downstream: strips are rectangles ending at their center-line X; push the angled
-	# face out by one half-strip slope so each strip's inner corner stays enclosed.
-	var conv_half_width: float = 0.5 * size.z / float(conveyor_count)
-	var ds_shift: float = conv_half_width * absf(tan_ds)
-	var ds_left_x: float = size.x - half_w * tan_ds + ds_shift
-	var ds_right_x: float = size.x + half_w * tan_ds + ds_shift
+	# Strips are rectangles ending at their center-line X, so a slanted end leaves
+	# stair-step gaps: push that face out by one half-step so each strip's inner
+	# corner stays enclosed. A straight end has no gaps — tuck the face in behind
+	# the end pulleys instead so no metal band shows at the transfer interface.
+	var conv_width: float = size.z / float(conveyor_count)
 	var roller_radius: float = size.y * 0.5
-	var us_right_x: float = half_w * tan_us + roller_radius
-	var us_left_x: float = -half_w * tan_us + roller_radius
+	var us_step: float = conv_width * absf(tan_us)
+	var ds_step: float = conv_width * absf(tan_ds)
+	var us_off: float = 0.5 * us_step if us_step > 0.02 else -roller_radius
+	var ds_off: float = 0.5 * ds_step if ds_step > 0.02 else -roller_radius
+	var ds_left_x: float = size.x - half_w * tan_ds + ds_off
+	var ds_right_x: float = size.x + half_w * tan_ds + ds_off
+	var us_right_x: float = half_w * tan_us - us_off
+	var us_left_x: float = -half_w * tan_us - us_off
 	var ref_cos: float = cos(deg_to_rad(60.0))
 	var max_angle: float = maxf(absf(angle_upstream), absf(angle_downstream))
 	var y_top: float = -maxf(0.001, _GAP_FILL_DEPTH * cos(max_angle) / ref_cos)
@@ -1141,6 +1179,7 @@ func _update_flow_arrow() -> void:
 		return
 	_flow_arrow = FlowDirectionArrow.create(Vector3(size.x, 0.0, width))
 	_flow_arrow.position = Vector3(size.x * 0.5, 0.2, 0.0)
+	_flow_arrow.rotation.y = PI if flip_direction else 0.0
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 	if has_meta("is_preview"):
@@ -1168,11 +1207,19 @@ func _update_speed_label() -> void:
 		label.no_depth_test = true
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.font_size = 128
+		label.font_size = 64
 		add_child(label, false, Node.INTERNAL_MODE_FRONT)
 		_speed_label = label
-	var bbox: AABB = local_bbox
-	_speed_label.position = bbox.position + bbox.size * 0.5
+	# Area centroid of the trapezoid footprint — the bbox center sits off the
+	# body when a slanted end cut overhangs far past the centerline span.
+	var hw: float = size.z * 0.5
+	var len_slope: float = tan(angle_downstream) - tan(angle_upstream)
+	var mid_slope: float = (tan(angle_downstream) + tan(angle_upstream)) * 0.5
+	var a: float = maxf(size.x, 0.001)
+	_speed_label.position = Vector3(
+			a * 0.5 + mid_slope * len_slope * hw * hw / (3.0 * a),
+			0.0,
+			len_slope * hw * hw / (3.0 * a))
 	_speed_label.rotation_degrees = Vector3(-90, 180.0 if flip_speed_label else 0.0, 0)
 	_speed_label.text = _speed_label_text()
 
@@ -1188,10 +1235,15 @@ func _physics_process(_delta: float) -> void:
 		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
-	if speed != _applied_speed or global_transform != _applied_velocity_xform:
-		BeltSurface.apply_velocity(_simple_conveyor_shape, speed)
-		_applied_speed = speed
+	var eff_speed: float = _effective_speed()
+	if eff_speed != _applied_speed or global_transform != _applied_velocity_xform:
+		BeltSurface.apply_velocity(_simple_conveyor_shape, eff_speed)
+		_applied_speed = eff_speed
 		_applied_velocity_xform = global_transform
+
+
+func _effective_speed() -> float:
+	return -speed if flip_direction else speed
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1199,7 +1251,7 @@ func _process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_belt_position = BeltSurface.advance_belt_position(
-			_belt_material, speed, delta, _belt_position)
+			_belt_material, _effective_speed(), delta, _belt_position)
 
 
 func _on_simulation_started() -> void:

@@ -483,8 +483,12 @@ static func _align_straight_to_straight(
 
 	# Flow-flip and no-op flip apply to end-to-end snaps only.
 	# Side snaps' basis is geometrically determined to keep the body OUTSIDE the target.
+	# Spurs are exempt too: their footprint is directional (slanted edge at the tail),
+	# so an end snap always adopts the target's flow direction instead of preserving
+	# the dragged part's facing — flipping would mis-anchor the asymmetric overhang.
 	var is_side_snap: bool = target_end.name == &"left_side" or target_end.name == &"right_side"
-	if not is_side_snap:
+	var sel_is_spur: bool = &"angle_downstream" in selected and &"angle_upstream" in selected
+	if not is_side_snap and not sel_is_spur:
 		# Flow-flip: rotate 180° around Y if forward direction inverted.
 		if sel_xform.basis.x.dot(snap_transform.basis.x) < 0.0:
 			var flipped: Array = _flip_around_local_y(snap_transform, snapped_end)
