@@ -517,7 +517,7 @@ func _update_speed_label() -> void:
 		label.no_depth_test = true
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.font_size = 128
+		label.font_size = 64
 		add_child(label, false, Node.INTERNAL_MODE_FRONT)
 		_speed_label = label
 	var bbox: AABB = local_bbox
