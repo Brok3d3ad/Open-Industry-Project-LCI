@@ -37,10 +37,11 @@ extends Node3D
 		output = value
 
 ## Current measured distance to detected object (read-only).
+## Reported to the PLC as whole millimeters ([code]DINT[/code]).
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var distance: float = max_range:
 	set(value):
 		if _distance_tag.is_ready() and value != distance:
-			_distance_tag.write_float32(value)
+			_distance_tag.write_int32(roundi(value * 1000.0))
 		distance = value
 
 var _mesh: ImmediateMesh
@@ -69,7 +70,7 @@ var _scan_tick: int = 0
 	set(value):
 		tag_group_name = value
 		tag_groups = value
-## The tag name for the distance value in the selected tag group.[br]Datatype: [code]REAL[/code] (32-bit float)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+## The tag name for the distance value in the selected tag group.[br]Value: distance in whole millimeters.[br]Datatype: [code]DINT[/code] (32-bit integer)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var tag_name: String = ""
 ## The tag name for the boolean detection output in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var output_tag_name: String = ""
@@ -230,12 +231,12 @@ static func _disable_collisions_recursive(node: Node) -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_distance_tag.register(tag_group_name, tag_name)
+		_distance_tag.register(tag_group_name, tag_name, OIPCommsTag.TYPE_INT32)
 		_output_tag.register(tag_group_name, output_tag_name)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if _distance_tag.on_group_initialized(tag_group_name_param):
-		_distance_tag.write_float32(distance)
+		_distance_tag.write_int32(roundi(distance * 1000.0))
 	if _output_tag.on_group_initialized(tag_group_name_param):
 		_output_tag.write_bit(output)
