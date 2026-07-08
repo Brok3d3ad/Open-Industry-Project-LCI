@@ -53,6 +53,12 @@ func _ready() -> void:
 	if color != Color.WHITE:
 		set("color", color)
 	_rigid_body_3d.mass = mass
+	# Continuous CD (Jolt: LinearCast motion quality) — a package only a few cm
+	# tall crosses a thin collision shell (e.g. the curved belt's trimesh) in one
+	# 120 Hz step once it falls fast enough, and the discrete solver never sees
+	# the contact. The cast only engages when motion is large relative to body
+	# size, so slow/settled boxes pay nothing.
+	_rigid_body_3d.continuous_cd = true
 	# Let settled boxes sleep so Jolt drops them from the solver (huge win for piled/accumulated
 	# packages). A sleep-veto (below) keeps boxes on a MOVING belt awake so they never freeze mid-line.
 	_rigid_body_3d.can_sleep = true
@@ -73,11 +79,26 @@ func _exit_tree() -> void:
 		queue_free()
 
 
+## Physics ticks between periodic stuck-box support checks (~4x/s at 120 Hz).
+const _SUPPORT_CHECK_INTERVAL: int = 30
+var _support_check_tick: int = 0
+
+
 func _physics_process(delta: float) -> void:
 	if _paused or not Simulation.is_running():
 		return
 	if _rigid_body_3d.freeze:
 		return
+	# Deterministic anti-freeze: the sleep-transition signal veto can be missed
+	# by the physics server, so any near-still box re-checks its support a few
+	# times a second and wakes itself if the surface underneath is moving.
+	_support_check_tick += 1
+	if _support_check_tick >= _SUPPORT_CHECK_INTERVAL:
+		_support_check_tick = 0
+		if (_rigid_body_3d.sleeping
+				or _rigid_body_3d.linear_velocity.length_squared() < 0.0025) \
+				and _is_on_moving_surface():
+			_rigid_body_3d.sleeping = false
 	ConveyorTransport.drive_body(_rigid_body_3d, size, delta)
 
 
@@ -89,7 +110,10 @@ func _on_sleeping_changed() -> void:
 	if not Simulation.is_running() or not _rigid_body_3d.sleeping:
 		return
 	if _is_on_moving_surface():
-		_rigid_body_3d.sleeping = false
+		# Deferred: flipping sleep state from inside the physics server's own
+		# sleep-transition callback is occasionally swallowed, leaving the box
+		# frozen mid-belt.
+		_rigid_body_3d.set_deferred(&"sleeping", false)
 
 
 func _is_on_moving_surface() -> bool:
@@ -100,12 +124,21 @@ func _is_on_moving_surface() -> bool:
 	if space == null:
 		return false
 	var from := _rigid_body_3d.global_position
-	var to := from + Vector3(0.0, -(size.y * 0.5 + 0.15), 0.0)
+	# Reach past the support face in any resting orientation (a tipped box's
+	# support sits up to half its LONGEST dimension below the center).
+	var reach: float = size.length() * 0.5 + 0.15
+	var to := from + Vector3(0.0, -reach, 0.0)
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	q.exclude = [_rigid_body_3d.get_rid()]
 	var hit := space.intersect_ray(q)
-	var col := hit.get("collider") as StaticBody3D
-	return col != null and col.constant_linear_velocity.length() > 0.05
+	var sb := hit.get("collider") as StaticBody3D
+	if sb != null:
+		# Curved belts drive via constant_angular_velocity; straight ones via linear.
+		return sb.constant_linear_velocity.length() > 0.05 \
+				or sb.constant_angular_velocity.length() > 0.05
+	# Resting on another box: follow a moving carrier instead of sleeping on it.
+	var rb := hit.get("collider") as RigidBody3D
+	return rb != null and rb.linear_velocity.length() > 0.05
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
