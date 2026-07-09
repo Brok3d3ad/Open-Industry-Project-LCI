@@ -274,7 +274,8 @@ func _add_box_to_scene(box: Box, spawn_transform: Transform3D, check_transform: 
 	else:
 		box.mass = mass
 	box.initial_linear_velocity = initial_linear_velocity
-	box.color = box_color
+	# Non-conveyables spawn red so they're visually distinct down the line.
+	box.color = Color.RED if box.get_meta("_reserved_non_conveyable", false) else box_color
 	box.instanced = true
 
 	if barcode_labels:
