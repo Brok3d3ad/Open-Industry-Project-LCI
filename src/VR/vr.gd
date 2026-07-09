@@ -13,20 +13,17 @@ extends BeltConveyor
 ## LEFT or RIGHT (±`MAX_DIVERT_ANGLE`) like the real pivoting roller units.
 ##
 ## Drive it with the inherited `speed` (0 = stopped). The divert direction comes from the
-## `divert` property, or from `auto_sort` (alternating LEFT/RIGHT per parcel at the infeed
-## light barrier). Keep the conveyor STRAIGHT (single segment) — the divert assumes a
-## straight deck.
+## PLC destination tags, latched when the assigned sensor blocks (no tag set = STRAIGHT).
+## Keep the conveyor STRAIGHT (single segment) — the divert assumes a straight deck.
 
 enum DivertDir { STRAIGHT, LEFT, RIGHT }
-## Repeating sequence auto mode assigns to successive boxes.
-enum AutoPattern { STRAIGHT_RIGHT_LEFT, LEFT_STRAIGHT, RIGHT_STRAIGHT, LEFT_RIGHT }
 
 const GLB_PATH: String = "res://assets/3DModels/VR/VR_Roller.glb"
 const BOX_COLLISION_MASK: int = 8   # boxes ride on physics layer 4 (value 8)
-const BOX_LENGTH: float = 0.3       # assumed parcel length (auto-mode fully-on gate)
+const BOX_LENGTH: float = 0.3       # fallback parcel length (no sensor / unmeasured parcel latch)
 const PANEL_NATIVE: float = 0.40    # GLB panel tile is 0.40 m square (native size before scaling)
 const DECK_THICKNESS: float = 0.12  # solid deck slab depth (blue side-guard material)
-const DEBUG: bool = false           # set true to print VR sorting state to the output console
+# (debug printing is the exported `debug_logging` toggle below)
 
 #region Config ---------------------------------------------------------------------
 # Fixed tuning — hardcoded, intentionally NOT exposed in the inspector.
@@ -55,8 +52,10 @@ const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys strai
 		sections = value
 		if is_node_ready():
 			_request_rebuild()
-## Non-comms fallback divert pattern, one step per box (used when Enable Comms is off).
-@export var auto_pattern: AutoPattern = AutoPattern.STRAIGHT_RIGHT_LEFT
+## Print tracking / divert-signal debug for THIS unit to the output console:
+## every PLC tag flip (with latch-window state), sensor edges, latched commands,
+## deck entry and discharge of each tracked box.
+@export var debug_logging: bool = false
 ## The photo eye that detects + measures each box. ASSIGNING it enables sorting; its
 ## physical `detected` flag is used, so a normally-closed sensor works as-is.
 @export_node_path("Node3D") var sensor: NodePath
@@ -70,6 +69,14 @@ const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys strai
 @export var straight_tag_name: String = ""
 @export var left_tag_name: String = ""
 @export var right_tag_name: String = ""
+## OPTIONAL lossless command interface (recommended over the L/R bit pulses):
+## for each decided box the PLC writes the direction to [member command_dir_tag_name]
+## (0 = STRAIGHT, 1 = LEFT, 2 = RIGHT) and THEN increments this DINT counter.
+## Retained values survive any comms poll rate — no pulse can fall between polls.
+## When both names are set, the L/R bit tags are ignored.
+@export var command_seq_tag_name: String = ""
+## Direction value read when [member command_seq_tag_name] changes. Datatype: DINT.
+@export var command_dir_tag_name: String = ""
 #endregion
 
 # Internal generated nodes / caches
@@ -93,24 +100,43 @@ var _section_bodies: Array[StaticBody3D] = []  # one transport body per row
 var _section_x: Array[float] = []              # local X of each row centre
 var _section_angle_cur: PackedFloat32Array = PackedFloat32Array()  # smoothed angle (deg) per row
 var _grid_nz: int = 1                           # rollers per row (idx -> row mapping)
+var _section_angle_pushed: PackedFloat32Array = PackedFloat32Array()  # last yaw uploaded to the MultiMesh per row
+var _section_vel_applied: PackedVector3Array = PackedVector3Array()   # last constant velocity written per row
+var _spin_pushed: float = INF                   # last u_speed uniform uploaded
+var _idle_cleaned: bool = false                 # one-shot idle reset latch
+var _deck_fill_mat: ShaderMaterial = null       # VR-owned copy of the deck material
+var _deck_divert_lit: bool = false              # deck currently tinted green
+
+const DECK_TINT_IDLE := Color(2.4, 2.4, 2.4)    # side-guard shader's stock grey tint
+const DECK_TINT_DIVERT := Color(0.25, 2.6, 0.25)  # green while a L/R divert command is live
 var _roller_positions: Array[Vector3] = []      # per-roller local position (for live yaw)
 var _roller_rs: float = 1.0                      # roller instance scale
 var _section_pitch: float = 0.09                 # one section length along flow (the divert unit)
 var _deck_min_x: float = 0.0                    # local X of the deck infeed edge
 var _deck_max_x: float = 0.0                    # local X of the deck discharge edge
-# Auto mode (external sensor -> sequenced divert)
-var _auto_sensor_node: Node = null
-var _auto_last_detected: bool = false           # edge tracker on the sensor (blocked state)
-var _auto_primed: bool = false                  # first poll after sim start primes, no edge
+# Sensor tracking (assigned photo eye -> PLC-commanded divert)
+var _sensor_node: Node = null
+var _sensor_last_detected: bool = false          # edge tracker on the sensor (blocked state)
+var _sensor_primed: bool = false                 # first poll after sim start primes, no edge
 var _dbg_frame: int = 0                          # debug heartbeat counter
-var _auto_seq: int = 0                           # STRAIGHT/RIGHT/LEFT cycle counter
+var _dbg_last_left: bool = false                 # divert-tag edge watcher state
+var _dbg_last_right: bool = false
+## The box that currently owns the L/R command channel: the box in the beam, or
+## the one that most recently cleared (until the grace expires or the next box
+## enters). Any L/R pulse is attributed to this box and nothing else.
+var _cmd_owner: Dictionary = {}
 var _tracked: Array = []                         # [{cmd:int, dist:float, len:float}] predicted boxes
-var _auto_passing: Dictionary = {}               # the box currently crossing the assigned sensor
+var _sensor_passing: Dictionary = {}             # the box currently crossing the assigned sensor
 var _sensor_to_deck_dist: float = 0.0            # assigned sensor -> deck infeed distance (metres)
 # PLC destination tags (BOOL), read when the sensor blocks
 var _div_straight_tag := OIPCommsTag.new()
 var _div_left_tag := OIPCommsTag.new()
 var _div_right_tag := OIPCommsTag.new()
+# Lossless counter interface (optional; overrides the bit tags when configured)
+var _cmd_seq_tag := OIPCommsTag.new()
+var _cmd_dir_tag := OIPCommsTag.new()
+var _last_cmd_seq: int = 0
+var _cmd_seq_primed: bool = false
 # GLB unit (one panel + one roller), measured once
 var _panel_mesh: Mesh = null
 var _panel_xform: Transform3D = Transform3D.IDENTITY
@@ -294,6 +320,11 @@ func _build_section_bodies(min_x: float, deck_l: float, nx: int, px: float,
 		_section_x.append(x)
 	_section_angle_cur = PackedFloat32Array()
 	_section_angle_cur.resize(nx)
+	# Change-gate caches: zeros match the freshly built state (yaw-0 field, stationary bodies).
+	_section_angle_pushed = PackedFloat32Array()
+	_section_angle_pushed.resize(nx)
+	_section_vel_applied = PackedVector3Array()
+	_section_vel_applied.resize(nx)
 
 
 ## Unit cylinder (radius 1, height 1) used as the dark hole disc, scaled per instance.
@@ -337,8 +368,24 @@ func _build_deck_fill(min_x: float, max_x: float, min_z: float, max_z: float, to
 	var bm := BoxMesh.new()
 	bm.size = Vector3(maxf(0.05, max_x - min_x), depth, maxf(0.05, max_z - min_z))
 	fill.mesh = bm
-	fill.set_surface_override_material(0, SideGuardMesh.create_material())
+	fill.set_surface_override_material(0, _ensure_deck_fill_mat(fill))
 	fill.position = Vector3((min_x + max_x) * 0.5, deck_top - depth * 0.5, (min_z + max_z) * 0.5)
+
+
+## VR-owned copy of the shared guard material (so the divert tint never leaks into
+## side guards elsewhere), installed on the deck fill. Lazy: also heals a deck node
+## that predates the material (e.g. after a script hot-reload without a rebuild).
+func _ensure_deck_fill_mat(fill_hint: MeshInstance3D = null) -> ShaderMaterial:
+	if _deck_fill_mat == null:
+		_deck_fill_mat = SideGuardMesh.create_material().duplicate() as ShaderMaterial
+		_deck_fill_mat.set_shader_parameter("color_tint",
+				DECK_TINT_DIVERT if _deck_divert_lit else DECK_TINT_IDLE)
+	var fill: MeshInstance3D = fill_hint
+	if fill == null:
+		fill = get_node_or_null("_VRDeckFill") as MeshInstance3D
+	if fill != null and fill.get_surface_override_material(0) != _deck_fill_mat:
+		fill.set_surface_override_material(0, _deck_fill_mat)
+	return _deck_fill_mat
 
 
 func _ensure_mm_inst(node_name: String, cached: MultiMeshInstance3D) -> MultiMeshInstance3D:
@@ -509,11 +556,36 @@ func _local_x(b: Node) -> float:
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)   # belt base: leg footing poll
 	if not Simulation.is_running():
+		# One-shot idle reset, then dormant. The old path kept re-uploading every
+		# roller transform and section velocity at 120 Hz while merely EDITING —
+		# a visible editor drag once a few VRs were in the scene.
+		if _idle_cleaned:
+			return
+		_idle_cleaned = true
 		_tracked.clear()
-		_auto_passing = {}
-		_auto_last_detected = false
-		_auto_primed = false
+		_sensor_passing = {}
+		_sensor_last_detected = false
+		_sensor_primed = false
+		_dbg_last_left = false
+		_dbg_last_right = false
+		_cmd_owner = {}
+		_cmd_seq_primed = false
 		_curve_yaw.clear()
+		for ix: int in _section_angle_cur.size():
+			_section_angle_cur[ix] = 0.0
+		for ix: int in _section_bodies.size():
+			var body: StaticBody3D = _section_bodies[ix]
+			if is_instance_valid(body):
+				body.constant_linear_velocity = Vector3.ZERO
+			if ix < _section_vel_applied.size():
+				_section_vel_applied[ix] = Vector3.ZERO
+		_update_roller_yaws()
+		_set_roller_spin(0.0)
+		_set_deck_divert_lit(false)
+		return
+	_idle_cleaned = false
+	if debug_logging:
+		_debug_watch_divert_tags()
 	# drop parcels that left the scene
 	for p: Variant in _parcels.keys():
 		if not is_instance_valid(p):
@@ -522,9 +594,10 @@ func _physics_process(delta: float) -> void:
 			_box_len.erase(p)
 			_lb_entry_x.erase(p)
 			_curve_yaw.erase(p)
-	var moving: bool = speed != 0.0 and Simulation.is_running() and not Simulation.is_paused()
+	var moving: bool = speed != 0.0 and not Simulation.is_paused()
 	if not sensor.is_empty():
-		_poll_auto_sensor()
+		_poll_sensor()
+		_attach_pending_command()
 		_advance_tracked(delta, moving)
 	# Each row (section) diverts independently toward the command of the parcel over it.
 	for ix: int in _section_bodies.size():
@@ -534,24 +607,28 @@ func _physics_process(delta: float) -> void:
 		var body: StaticBody3D = _section_bodies[ix]
 		if not is_instance_valid(body):
 			continue
-		if not moving:
-			body.constant_linear_velocity = Vector3.ZERO
-			continue
 		# Physics uses the INSTANT target (not the eased angle) so every row under the box
 		# pushes the same direction at once — no ramp gradient that twists/zig-zags the box.
-		var rad: float = deg_to_rad(target)
-		var flow: Vector3 = body.global_transform.basis.x.normalized()
-		body.constant_linear_velocity = (Basis(Vector3.UP, rad) * flow) * speed
+		var desired: Vector3 = Vector3.ZERO
+		if moving:
+			var rad: float = deg_to_rad(target)
+			var flow: Vector3 = body.global_transform.basis.x.normalized()
+			desired = (Basis(Vector3.UP, rad) * flow) * speed
+		# Write the body velocity only on change — otherwise it's `sections` redundant
+		# physics-server writes every tick.
+		if ix < _section_vel_applied.size():
+			if desired.is_equal_approx(_section_vel_applied[ix]):
+				continue
+			_section_vel_applied[ix] = desired
+		body.constant_linear_velocity = desired
 	_curve_parcels(delta, moving)
-	if _roller_shader != null:
-		var spin: float = ROLLER_SPIN_SPEED if moving else 0.0
-		# Default spins forward with flow; FLIP_SPIN reverses.
-		_roller_shader.set_shader_parameter("u_speed", spin if FLIP_SPIN else -spin)
+	_set_roller_spin(ROLLER_SPIN_SPEED if moving else 0.0)
 	_update_roller_yaws()
-	if DEBUG:
+	_set_deck_divert_lit(_any_divert_command_live())
+	if debug_logging:
 		_dbg_frame += 1
 		if _dbg_frame % 60 == 0:
-			var n: Node = _resolve_auto_sensor()
+			var n: Node = _resolve_sensor()
 			var det: Variant = "NO-NODE/PROP"
 			if n != null and "detected" in n:
 				det = n.get("detected")
@@ -571,21 +648,64 @@ func _physics_process(delta: float) -> void:
 
 ## Yaw each row's barrels to its divert angle by rotating the instance transform about
 ## world up — a true 45 deg turn (base orientation ROLLER_ROTATION_DEG + the row's angle).
+## Rows whose eased angle hasn't moved are skipped — re-uploading every instance
+## transform per tick was the dominant per-frame cost of an idle VR.
 func _update_roller_yaws() -> void:
 	if not is_instance_valid(_roller_mm_inst):
 		return
 	var mm: MultiMesh = _roller_mm_inst.multimesh
 	if mm == null:
 		return
+	if _section_angle_pushed.size() != _section_angle_cur.size():
+		_section_angle_pushed.resize(_section_angle_cur.size())
+		_section_angle_pushed.fill(1.0e9)   # size changed mid-flight — force a full push
 	var idx: int = 0
 	for ix: int in _section_angle_cur.size():
-		var total_yaw: float = deg_to_rad(ROLLER_ROTATION_DEG + _section_angle_cur[ix])
+		var ang: float = _section_angle_cur[ix]
+		if absf(ang - _section_angle_pushed[ix]) < 0.01:
+			idx += _grid_nz
+			continue
+		_section_angle_pushed[ix] = ang
+		var total_yaw: float = deg_to_rad(ROLLER_ROTATION_DEG + ang)
 		var yaw_basis: Basis = Basis(Vector3.UP, total_yaw).scaled(Vector3(_roller_rs, _roller_rs, _roller_rs))
 		for iz: int in _grid_nz:
 			if idx >= mm.instance_count or idx >= _roller_positions.size():
 				return
 			mm.set_instance_transform(idx, Transform3D(yaw_basis, _roller_positions[idx]) * _roller_xform)
 			idx += 1
+
+
+## True while any box on/inbound to the deck carries a LEFT/RIGHT divert command.
+func _any_divert_command_live() -> bool:
+	for t: Dictionary in _tracked:
+		if int(t.get("cmd", 0)) != int(DivertDir.STRAIGHT):
+			return true
+	for p: Variant in _parcels.keys():
+		if is_instance_valid(p) and int(_parcels[p]) != int(DivertDir.STRAIGHT):
+			return true
+	return false
+
+
+## Tint the deck green while a divert command is live; grey otherwise. Change-gated.
+func _set_deck_divert_lit(lit: bool) -> void:
+	if lit == _deck_divert_lit:
+		return
+	_deck_divert_lit = lit
+	var mat: ShaderMaterial = _ensure_deck_fill_mat()
+	if mat != null:
+		mat.set_shader_parameter("color_tint",
+				DECK_TINT_DIVERT if lit else DECK_TINT_IDLE)
+
+
+## Upload the spin uniform only when it changes (it's constant while running).
+func _set_roller_spin(spin: float) -> void:
+	if _roller_shader == null:
+		return
+	var signed_spin: float = spin if FLIP_SPIN else -spin
+	if signed_spin == _spin_pushed:
+		return
+	_spin_pushed = signed_spin
+	_roller_shader.set_shader_parameter("u_speed", signed_spin)
 
 
 ## Target divert angle (deg) for the section at local X. EVERY row under the box's
@@ -656,20 +776,20 @@ func _curve_parcels(delta: float, moving: bool) -> void:
 		_curve_yaw[body] = applied + yaw_vel * delta
 
 
-#region Auto mode ------------------------------------------------------------------
-func _resolve_auto_sensor() -> Node:
-	if is_instance_valid(_auto_sensor_node):
-		return _auto_sensor_node
+#region Sensor tracking ------------------------------------------------------------
+func _resolve_sensor() -> Node:
+	if is_instance_valid(_sensor_node):
+		return _sensor_node
 	if sensor.is_empty():
 		return null
-	_auto_sensor_node = get_node_or_null(sensor)
-	return _auto_sensor_node
+	_sensor_node = get_node_or_null(sensor)
+	return _sensor_node
 
 
 ## Watch the assigned sensor; on each rising edge of its `detected` flag, queue the next
 ## divert command and refresh the sensor->deck distance.
-func _poll_auto_sensor() -> void:
-	var node: Node = _resolve_auto_sensor()
+func _poll_sensor() -> void:
+	var node: Node = _resolve_sensor()
 	if node == null:
 		return
 	if not _section_x.is_empty():
@@ -684,35 +804,132 @@ func _poll_auto_sensor() -> void:
 		blocked = bool(node.get("detected"))
 	elif "output" in node:
 		blocked = bool(node.get("output"))
-	if not _auto_primed:
+	if not _sensor_primed:
 		# Don't treat the first reading as an edge (e.g. a box already sitting in the beam).
-		_auto_primed = true
-		_auto_last_detected = blocked
+		_sensor_primed = true
+		_sensor_last_detected = blocked
 		return
-	if blocked and not _auto_last_detected:
+	if blocked and not _sensor_last_detected:
 		# Leading edge hit the sensor — start a box, begin measuring its length.
-		var entry: Dictionary = {"cmd": _auto_next_command(), "dist": 0.0, "len": BOX_LENGTH, "measured": false}
+		# Until the trailing edge measures it, assume the length equals the
+		# sensor -> first-divert-section distance: the longest a box can be and
+		# still have fully cleared the sensor when its front reaches the deck.
+		# Destination comes from the PLC tags only; nothing set = STRAIGHT.
+		var assumed_len: float = maxf(0.05, _sensor_to_deck_dist)
+		# Start STRAIGHT; the command is attached later from the tags while THIS
+		# box owns the channel (in the beam + grace). The new box takes ownership
+		# from the previous one, which is now locked to whatever it received.
+		var entry: Dictionary = {"cmd": int(DivertDir.STRAIGHT), "dist": 0.0, "len": assumed_len,
+				"measured": false, "t_enter_ms": Time.get_ticks_msec()}
 		_tracked.append(entry)
-		_auto_passing = entry
-		if DEBUG:
-			print("[VR %s] >>> BOX entered sensor (rising). cmd=%d  d2deck=%.2f" % [name, int(entry["cmd"]), _sensor_to_deck_dist])
-	elif blocked and _auto_last_detected:
-		# Box still in the beam — keep reading the PLC; it may set L/R a scan after the PE.
-		if enable_comms and not _auto_passing.is_empty():
-			var c: int = _read_comms_command()
-			if c != int(DivertDir.STRAIGHT) and c != int(_auto_passing.get("cmd", 0)):
-				_auto_passing["cmd"] = c
-				if DEBUG:
-					print("[VR %s]   PLC set destination=%d while box at sensor" % [name, c])
-	elif not blocked and _auto_last_detected:
+		_sensor_passing = entry
+		if not _cmd_seq_active():
+			_cmd_owner = entry
+		if debug_logging:
+			print("[VR %s] t=%.3f >>> BOX at sensor (rising). took command channel | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
+					name, Time.get_ticks_msec() / 1000.0,
+					_div_left_tag.is_ready(), _div_left_tag.is_ready() and _div_left_tag.read_bit(),
+					_div_right_tag.is_ready(), _div_right_tag.is_ready() and _div_right_tag.read_bit(),
+					_sensor_to_deck_dist, assumed_len])
+	elif not blocked and _sensor_last_detected:
 		# Trailing edge cleared the sensor — distance travelled meanwhile IS the box length.
-		if not _auto_passing.is_empty():
-			_auto_passing["len"] = maxf(0.05, float(_auto_passing["dist"]))
-			_auto_passing["measured"] = true
-			if DEBUG:
-				print("[VR %s] <<< BOX cleared sensor (falling). len=%.3f" % [name, float(_auto_passing["len"])])
-			_auto_passing = {}
-	_auto_last_detected = blocked
+		if not _sensor_passing.is_empty():
+			_sensor_passing["len"] = maxf(0.05, float(_sensor_passing["dist"]))
+			_sensor_passing["measured"] = true
+			if debug_logging:
+				print("[VR %s] t=%.3f <<< BOX cleared sensor (falling). len=%.3f finalCmd=%s" % [
+						name, Time.get_ticks_msec() / 1000.0, float(_sensor_passing["len"]),
+						_cmd_name(int(_sensor_passing.get("cmd", 0)))])
+			_sensor_passing = {}
+	_sensor_last_detected = blocked
+
+
+## Grace after the trailing edge during which a late-delivered command still
+## counts for the box that just cleared. It also closes early the moment the
+## next box enters the beam (that box becomes the new owner). Sized to one comms
+## poll plus margin — long enough to catch a command set while the box was
+## blocking but delivered a poll late, short enough not to bleed onto neighbours.
+const CMD_GRACE_S: float = 0.3
+
+## Attribute an L/R pulse to whichever box currently OWNS the command channel.
+## Ownership is unambiguous: the box in the beam owns it; when it clears it keeps
+## ownership for CMD_GRACE_S (or until the next box enters). Because the PLC only
+## sets the tag while a box blocks the PE, a pulse seen with no owner (or after
+## the grace) belongs to no tracked box and is dropped rather than mis-assigned.
+func _attach_pending_command() -> void:
+	if not enable_comms:
+		return
+	if _cmd_seq_active():
+		_attach_seq_command()
+		return
+	# Expire ownership once the owner cleared longer than the grace window ago.
+	if not _cmd_owner.is_empty() and bool(_cmd_owner.get("measured", false)):
+		var since_clear: float = float(_cmd_owner["dist"]) - float(_cmd_owner.get("len", BOX_LENGTH))
+		if since_clear > absf(speed) * CMD_GRACE_S:
+			_cmd_owner = {}
+	var c: int = _read_comms_command()
+	if c == int(DivertDir.STRAIGHT):
+		return
+	if _cmd_owner.is_empty():
+		return   # tag high with no box owning the channel — not a tracked box's command
+	if int(_cmd_owner.get("cmd", 0)) != int(DivertDir.STRAIGHT):
+		return   # already commanded this box; a held level never re-commands
+	_cmd_owner["cmd"] = c
+	if debug_logging:
+		print("[VR %s] t=%.3f +++ %s attached to owner box %.2f m past sensor (inBeam=%s)" % [
+				name, Time.get_ticks_msec() / 1000.0, _cmd_name(c), float(_cmd_owner["dist"]),
+				not bool(_cmd_owner.get("measured", false))])
+
+
+func _cmd_seq_active() -> bool:
+	return command_seq_tag_name != "" and command_dir_tag_name != ""
+
+
+## Counter interface: a CHANGE of the retained sequence DINT is one command for
+## one box; the direction DINT says which way. Retained values can't be missed
+## by polling, so nothing here depends on pulse widths or edge timing.
+func _attach_seq_command() -> void:
+	if not _cmd_seq_tag.is_ready() or not _cmd_dir_tag.is_ready():
+		return
+	var seq: int = _cmd_seq_tag.read_int32()
+	if not _cmd_seq_primed:
+		# First read after the group comes online is the baseline, not a command.
+		_cmd_seq_primed = true
+		_last_cmd_seq = seq
+		return
+	if seq == _last_cmd_seq:
+		return
+	_last_cmd_seq = seq
+	var dir: int = _cmd_dir_tag.read_int32()
+	var c: int = int(DivertDir.STRAIGHT)
+	if dir == 1:
+		c = int(DivertDir.LEFT)
+	elif dir == 2:
+		c = int(DivertDir.RIGHT)
+	if debug_logging:
+		print("[VR %s] t=%.3f SEQ command #%d dir=%s" % [
+				name, Time.get_ticks_msec() / 1000.0, seq, _cmd_name(c)])
+	if c == int(DivertDir.STRAIGHT):
+		return
+	# The counter is retained and lossless, so ownership timing doesn't matter:
+	# attach to the box in the beam, else the one that most recently cleared.
+	var t: Dictionary = _cmd_owner if not _cmd_owner.is_empty() else _last_cleared_box()
+	if t.is_empty():
+		if debug_logging:
+			print("[VR %s]    !!! SEQ command #%d ORPHANED — no box at the sensor" % [name, seq])
+		return
+	t["cmd"] = c
+	if debug_logging:
+		print("[VR %s]    +++ attached to box %.2f m past sensor (inBeam=%s)" % [
+				name, float(t["dist"]), not bool(t.get("measured", false))])
+
+
+## Most recently cleared tracked box still on the deck (for the seq interface).
+func _last_cleared_box() -> Dictionary:
+	for i: int in range(_tracked.size() - 1, -1, -1):
+		if bool(_tracked[i].get("measured", false)):
+			return _tracked[i]
+	return {}
 
 
 ## Advance each predicted box at the roller speed; drop those past the discharge end.
@@ -724,15 +941,50 @@ func _advance_tracked(delta: float, moving: bool) -> void:
 	for t: Dictionary in _tracked:
 		var blen: float = float(t.get("len", BOX_LENGTH))
 		var front: float = _deck_min_x + (float(t["dist"]) - _sensor_to_deck_dist)
+		if debug_logging and not bool(t.get("dbg_on_deck", false)) \
+				and bool(t.get("measured", false)) and front - blen >= _deck_min_x:
+			t["dbg_on_deck"] = true
+			print("[VR %s] t=%.3f === box fully on deck, wave active. cmd=%s len=%.2f front=%.2f" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"])), blen, front])
 		# Keep diverting while ANY of the box is still on the deck — i.e. until its tail
 		# (front - length) passes the discharge, so the remaining part keeps following it.
 		if front - blen <= _deck_max_x:
 			keep.append(t)
+		elif debug_logging:
+			print("[VR %s] t=%.3f ~~~ box discharged. cmd=%s len=%.2f measured=%s" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"])), blen,
+					bool(t.get("measured", false))])
 	_tracked = keep
 
 
-## The destination latched for a box when the sensor blocks: PLC tags if comms are on
-## (LEFT/RIGHT if set, else STRAIGHT), otherwise the cycling `auto_pattern`.
+func _cmd_name(c: int) -> String:
+	if c == int(DivertDir.LEFT):
+		return "LEFT"
+	if c == int(DivertDir.RIGHT):
+		return "RIGHT"
+	return "STRAIGHT"
+
+
+## Debug: print every flip of the PLC divert tags, with the latch-window state at
+## that moment — a tag that rises while no box is at the sensor is a command the
+## VR will miss unless it is still set when the next box arrives.
+func _debug_watch_divert_tags() -> void:
+	if not enable_comms:
+		return
+	var lb: bool = _div_left_tag.is_ready() and _div_left_tag.read_bit()
+	var rb: bool = _div_right_tag.is_ready() and _div_right_tag.read_bit()
+	if lb == _dbg_last_left and rb == _dbg_last_right:
+		return
+	_dbg_last_left = lb
+	_dbg_last_right = rb
+	var beam: String = "BLOCKED" if _sensor_last_detected else "clear"
+	print("[VR %s] t=%.3f DIVERT TAGS: L=%s R=%s | beam=%s boxAtSensor=%s tracked=%d" % [
+			name, Time.get_ticks_msec() / 1000.0, lb, rb, beam,
+			not _sensor_passing.is_empty(), _tracked.size()])
+	if (lb or rb) and _sensor_passing.is_empty() and not _sensor_last_detected:
+		print("[VR %s]    ^ tag rose with NO box at the sensor — outside the latch window; a box gets this command only if the tag is still set when it reaches the sensor" % name)
+
+
 ## Read the PLC destination tags right now: LEFT/RIGHT if set, else STRAIGHT.
 func _read_comms_command() -> int:
 	if _div_left_tag.is_ready() and _div_left_tag.read_bit():
@@ -740,34 +992,11 @@ func _read_comms_command() -> int:
 	if _div_right_tag.is_ready() and _div_right_tag.read_bit():
 		return int(DivertDir.RIGHT)
 	return int(DivertDir.STRAIGHT)
-
-
-func _auto_next_command() -> int:
-	if enable_comms:
-		var cmd: int = _read_comms_command()
-		if DEBUG:
-			print("[VR %s]     comms at entry: cmd=%d  L.ready=%s R.ready=%s  group='%s' L='%s' R='%s'" % [
-				name, cmd, _div_left_tag.is_ready(), _div_right_tag.is_ready(),
-				divert_tag_group_name, left_tag_name, right_tag_name])
-		return cmd
-	var order: Array[int]
-	match auto_pattern:
-		AutoPattern.LEFT_STRAIGHT:
-			order = [int(DivertDir.LEFT), int(DivertDir.STRAIGHT)]
-		AutoPattern.RIGHT_STRAIGHT:
-			order = [int(DivertDir.RIGHT), int(DivertDir.STRAIGHT)]
-		AutoPattern.LEFT_RIGHT:
-			order = [int(DivertDir.LEFT), int(DivertDir.RIGHT)]
-		_:
-			order = [int(DivertDir.STRAIGHT), int(DivertDir.RIGHT), int(DivertDir.LEFT)]
-	var cmd: int = order[_auto_seq % order.size()]
-	_auto_seq += 1
-	return cmd
 #endregion
 
 
-## Command latched onto a real box at the light barrier when NOT in auto mode — straight
-## (manual divert/auto-sort were removed; diverting is driven by auto mode).
+## Command latched onto a real box at the light barrier — always straight; the
+## sensor + PLC tracking path is the only source of divert commands.
 func _pick_divert() -> int:
 	return int(DivertDir.STRAIGHT)
 #endregion
@@ -785,6 +1014,11 @@ func _on_simulation_started() -> void:
 		_div_straight_tag.register(divert_tag_group_name, straight_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_left_tag.register(divert_tag_group_name, left_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_right_tag.register(divert_tag_group_name, right_tag_name, OIPComms.TAG_TYPE_BOOL)
+		if command_seq_tag_name != "":
+			_cmd_seq_tag.register(divert_tag_group_name, command_seq_tag_name, OIPComms.TAG_TYPE_INT32)
+		if command_dir_tag_name != "":
+			_cmd_dir_tag.register(divert_tag_group_name, command_dir_tag_name, OIPComms.TAG_TYPE_INT32)
+		_cmd_seq_primed = false
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -792,6 +1026,8 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	_div_straight_tag.on_group_initialized(tag_group_name_param)
 	_div_left_tag.on_group_initialized(tag_group_name_param)
 	_div_right_tag.on_group_initialized(tag_group_name_param)
+	_cmd_seq_tag.on_group_initialized(tag_group_name_param)
+	_cmd_dir_tag.on_group_initialized(tag_group_name_param)
 
 
 func _validate_property(property: Dictionary) -> void:
