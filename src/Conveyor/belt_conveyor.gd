@@ -332,6 +332,12 @@ func _segments_total_length() -> float:
 	set(value):
 		speed = value / _MS_TO_FPM
 
+## Seconds to ramp up to a new commanded speed. 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var accel_time: float = 0.0
+
+## Seconds to ramp down to a new commanded speed (including stopping). 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var decel_time: float = 0.0
+
 @export var belt_color: Color = Color.WHITE:
 	set(value):
 		belt_color = value
@@ -502,6 +508,11 @@ var _bodies: Array[StaticBody3D] = []
 # Last speed/placement pushed to the bodies; INF forces a re-push.
 var _applied_speed: float = INF
 var _applied_velocity_xform: Transform3D
+# Actual belt speed after accel/decel ramping; drives physics and the visual scroll.
+var _current_speed: float = 0.0
+var _ramp_target: float = 0.0
+var _ramp_accel_rate: float = INF
+var _ramp_decel_rate: float = INF
 var _frame_rail_meshes: Array[MeshInstance3D] = []
 var _legs: Array[Node3D] = []
 var _legs_state: Dictionary = {}
@@ -818,6 +829,9 @@ func _exit_tree() -> void:
 
 
 func _on_simulation_started() -> void:
+	# Start from standstill so the belt ramps up per accel_time.
+	_current_speed = 0.0
+	_ramp_target = 0.0
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
@@ -833,6 +847,8 @@ func _on_simulation_ended() -> void:
 		if is_instance_valid(body):
 			body.constant_linear_velocity = Vector3.ZERO
 	_applied_speed = INF
+	_current_speed = 0.0
+	_ramp_target = 0.0
 
 
 # Belt isn't moving while paused, so publish running=false; resuming restores
@@ -1560,17 +1576,36 @@ func _apply_physics_material() -> void:
 			body.physics_material_override = physics_material
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
-	if speed != _applied_speed or global_transform != _applied_velocity_xform:
+	_step_speed_ramp(delta)
+	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform:
 		for body: StaticBody3D in _bodies:
-			BeltSurface.apply_velocity(body, speed)
-		_applied_speed = speed
+			BeltSurface.apply_velocity(body, _current_speed)
+		_applied_speed = _current_speed
 		_applied_velocity_xform = global_transform
+
+
+## Move _current_speed toward the commanded speed at the accel/decel ramp rates.
+## Each rate is sized so the full transition takes accel_time / decel_time seconds.
+func _step_speed_ramp(delta: float) -> void:
+	if speed != _ramp_target:
+		var span: float = absf(speed - _current_speed)
+		_ramp_accel_rate = INF if accel_time <= 0.0 else span / accel_time
+		_ramp_decel_rate = INF if decel_time <= 0.0 else span / decel_time
+		_ramp_target = speed
+	if _current_speed == _ramp_target:
+		return
+	# Decelerating whenever the move shrinks the speed magnitude (incl. the
+	# pre-zero-crossing half of a direction reversal).
+	var decelerating: bool = _current_speed != 0.0 \
+			and signf(_ramp_target - _current_speed) != signf(_current_speed)
+	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
+	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1578,7 +1613,7 @@ func _process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_belt_position = BeltSurface.advance_belt_position(
-			_belt_material, speed, delta, _belt_position)
+			_belt_material, _current_speed, delta, _belt_position)
 
 
 func _connect_segment_signals() -> void:
