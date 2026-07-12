@@ -18,15 +18,6 @@ const MESH_SCALE_FACTOR := 2.0
 		inner_radius = clamped
 		_sync_size_from_dimensions()
 
-## Outer curve edge radius in meters, as dimensioned on layout drawings.
-## Derived ([member inner_radius] + [member width]); setting it adjusts the
-## width while keeping the inner radius fixed. Set the inner radius first.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var outer_radius: float:
-	get:
-		return inner_radius + width
-	set(value):
-		width = value - inner_radius
-
 @export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
 		var clamped: float = max(0.1, value)
@@ -163,6 +154,12 @@ func _on_size_changed() -> void:
 		return speed * _MS_TO_FPM
 	set(value):
 		speed = value / _MS_TO_FPM
+
+## Seconds to ramp up to a new commanded speed. 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var accel_time: float = 0.0
+
+## Seconds to ramp down to a new commanded speed (including stopping). 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var decel_time: float = 0.0
 
 ## Distance from outer edge where [member speed] is measured.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = BASE_CONVEYOR_WIDTH / 2.0:
@@ -349,6 +346,12 @@ var _linear_speed: float = 0.0
 ## NAN forces the first write through. Saves the per-tick basis lookup +
 ## velocity vector recomputation while spinning at a constant rate.
 var _last_pushed_angular_speed: float = NAN
+# Actual belt speed after accel/decel ramping; _angular_speed/_linear_speed are
+# derived from it while the simulation runs (from `speed` directly in the editor).
+var _current_speed: float = 0.0
+var _ramp_target: float = 0.0
+var _ramp_accel_rate: float = INF
+var _ramp_decel_rate: float = INF
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
@@ -359,6 +362,7 @@ var _mesh_regeneration_needed: bool = true
 
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
+var _actual_speed_tag := OIPCommsTag.new()
 @export_category("Communications")
 @export var enable_comms := false
 @export var speed_tag_group_name: String
@@ -375,6 +379,13 @@ var _running_tag := OIPCommsTag.new()
 		running_tag_groups = value
 ## The tag name for the running state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var running_tag_name := ""
+@export var actual_speed_tag_group_name: String
+@export_custom(0, "tag_group_enum") var actual_speed_tag_groups: String:
+	set(value):
+		actual_speed_tag_group_name = value
+		actual_speed_tag_groups = value
+## The tag the conveyor [b]writes[/b] its actual belt speed to, following the accel/decel ramp ([member speed] stays the commanded setpoint).[br]Datatype: [code]REAL[/code] m/s, or [code]DINT[/code] fpm when [member speed_in_fpm] is on.[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+@export var actual_speed_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "speed":
@@ -386,13 +397,11 @@ func _validate_property(property: Dictionary) -> void:
 	if property.name == "size":
 		property.usage = PROPERTY_USAGE_STORAGE
 		return
-	if property.name == "outer_radius":
-		# Derived from inner_radius + width — edit in the inspector, never stored.
-		property.usage = PROPERTY_USAGE_EDITOR
-		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
-	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
+	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
+		return
+	OIPCommsSetup.validate_tag_property(property, "actual_speed_tag_group_name", "actual_speed_tag_groups", "actual_speed_tag_name")
 
 
 func _get_custom_preview_node() -> Node3D:
@@ -1103,6 +1112,7 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
+	actual_speed_tag_group_name = OIPCommsSetup.default_tag_group(actual_speed_tag_group_name)
 	Simulation.started.connect(_on_simulation_started)
 	Simulation.stopped.connect(_on_simulation_ended)
 	Simulation.pause_toggled.connect(_on_simulation_set_paused)
@@ -1136,7 +1146,10 @@ func _get_scale_warning_text() -> String:
 
 func _recalculate_speeds() -> void:
 	var direction := -1.0 if reverse else 1.0
-	var effective_speed := speed * direction
+	# While simulating, drive from the ramped speed; in the editor the commanded
+	# speed applies directly.
+	var drive_speed: float = _current_speed if Simulation.is_running() else speed
+	var effective_speed := drive_speed * direction
 	var outer_radius_val: float = inner_radius + width
 	var reference_radius: float = outer_radius_val - reference_distance
 	_angular_speed = 0.0 if absf(reference_radius) < 1e-6 else effective_speed / reference_radius
@@ -1146,12 +1159,14 @@ func _recalculate_speeds() -> void:
 
 	_update_belt_ends()
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running():
 		return
+	if not Simulation.is_paused():
+		_step_speed_ramp(delta)
 	# Only re-push the angular velocity when it actually changes — same
 	# rationale as BeltConveyor's linear case.
 	if not is_equal_approx(_angular_speed, _last_pushed_angular_speed):
@@ -1163,6 +1178,38 @@ func _physics_process(_delta: float) -> void:
 			# Belt tangent is local -X on both end bodies (see _update_belt_ends).
 			body.constant_linear_velocity = -body.global_transform.basis.x.normalized() * _linear_speed
 		_last_pushed_angular_speed = _angular_speed
+
+
+## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
+## then rederive the angular/linear speeds. Each rate is sized so the full
+## transition takes accel_time / decel_time seconds.
+func _step_speed_ramp(delta: float) -> void:
+	if speed != _ramp_target:
+		var span: float = absf(speed - _current_speed)
+		_ramp_accel_rate = INF if accel_time <= 0.0 else span / accel_time
+		_ramp_decel_rate = INF if decel_time <= 0.0 else span / decel_time
+		_ramp_target = speed
+	if _current_speed == _ramp_target:
+		return
+	# Decelerating whenever the move shrinks the speed magnitude (incl. the
+	# pre-zero-crossing half of a direction reversal).
+	var decelerating: bool = _current_speed != 0.0 \
+			and signf(_ramp_target - _current_speed) != signf(_current_speed)
+	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
+	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
+	_recalculate_speeds()
+	_write_actual_speed(_current_speed)
+
+
+## Report the ramped speed to the PLC. Same unit/datatype convention as the
+## speed command tag: REAL m/s, or DINT fpm when speed_in_fpm is on.
+func _write_actual_speed(value: float) -> void:
+	if not _actual_speed_tag.is_ready():
+		return
+	if speed_in_fpm:
+		_actual_speed_tag.write_int32(roundi(value * _MS_TO_FPM))
+	else:
+		_actual_speed_tag.write_float32(value)
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1189,9 +1236,15 @@ func _update_belt_material_scale() -> void:
 func _on_simulation_started() -> void:
 	_update_belt_ends()
 
+	# Start from standstill so the belt ramps up per accel_time.
+	_current_speed = 0.0
+	_ramp_target = 0.0
+	_recalculate_speeds()
+
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
+		_actual_speed_tag.register(actual_speed_tag_group_name, actual_speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 
 
 func _on_simulation_ended() -> void:
@@ -1211,6 +1264,10 @@ func _on_simulation_ended() -> void:
 	# stop/start (or scene reload) with an unchanged speed skips the push and
 	# leaves boxes stuck on a stationary belt surface.
 	_last_pushed_angular_speed = NAN
+	_current_speed = 0.0
+	_ramp_target = 0.0
+	_write_actual_speed(0.0)
+	_recalculate_speeds()
 
 
 # Belt isn't moving while paused, so publish running=false; resuming restores
@@ -1218,6 +1275,7 @@ func _on_simulation_ended() -> void:
 func _on_simulation_set_paused(paused: bool) -> void:
 	if _running_tag.is_ready():
 		_running_tag.write_bit(not paused and speed != 0.0)
+	_write_actual_speed(0.0 if paused else _current_speed)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -1226,6 +1284,8 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	_running_tag.on_group_initialized(tag_group_name_param)
 	if not was_running_ready and _running_tag.is_ready():
 		_running_tag.write_bit(speed != 0.0)
+	if _actual_speed_tag.on_group_initialized(tag_group_name_param):
+		_write_actual_speed(_current_speed)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
