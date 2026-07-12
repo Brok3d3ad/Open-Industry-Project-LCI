@@ -85,12 +85,10 @@ extends ResizableNode3D
 			return
 		sorter_mode = value
 		update_configuration_warnings()
-## Seconds to wait for ok-to-unload after raising the request. On timeout the request
-## drops and a fresh handshake starts.
+## Seconds to wait for ok-to-unload after raising the request (on timeout the request
+## drops and a fresh handshake starts). Doubles as the time to discharge: after the
+## grant, the box spawns once this many seconds have passed.
 @export_range(0.1, 60.0, 0.1, "or_greater", "suffix:s") var sorter_ok_timeout: float = 5.0
-## Time to discharge: seconds between the PLC's ok-to-unload grant and the box
-## actually spawning. 0 = spawn immediately on grant.
-@export_range(0.0, 60.0, 0.1, "or_greater", "suffix:s") var sorter_discharge_time: float = 0.0
 
 @export_group("Barcode Label")
 ## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
@@ -120,7 +118,7 @@ extends ResizableNode3D
 @export var request_unload_tag_name: String = ""
 ## Tag the PLC [b]writes[/b]: set high while a request is pending to grant it — the box spawns and the request drops. Lower it again to arm the next handshake.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var ok_unload_tag_name: String = ""
-## Tag the spawner [b]writes[/b]: length (X size) of the next box in whole millimeters, published together with the unload request. Optional — leave empty to skip.[br]Datatype: [code]DINT[/code] (32-bit integer)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+## Tag the spawner [b]writes[/b]: length (X size) of the next box in whole millimeters, published together with the unload request. Optional — leave empty to skip.[br]Datatype: [code]INT[/code] (16-bit integer)[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var box_length_tag_name: String = ""
 
 # Sorter-mode handshake: raise request + publish next box length -> wait for ok
@@ -231,8 +229,9 @@ func _physics_process(delta: float) -> void:
 ## One tick of the sorter-mode handshake. States: reserve the next box and raise the
 ## request tag while publishing the box length, count up to [member sorter_ok_timeout]
 ## waiting for the PLC's ok (timeout drops the request and restarts — the same box is
-## re-offered), wait out [member sorter_discharge_time], spawn (retrying while the
-## spawn area is blocked), then wait for the PLC to lower ok before the next request.
+## re-offered), wait out the discharge time (same [member sorter_ok_timeout] value),
+## spawn (retrying while the spawn area is blocked), then wait for the PLC to lower ok
+## before the next request.
 func _step_sorter_handshake(delta: float) -> void:
 	if not enable_comms:
 		return
@@ -241,7 +240,7 @@ func _step_sorter_handshake(delta: float) -> void:
 			if _request_tag.is_ready():
 				_reserve_sorter_box()
 				if _length_tag.is_ready():
-					_length_tag.write_int32(roundi(_pending_spawn_size.x * 1000.0))
+					_length_tag.write_int16(roundi(_pending_spawn_size.x * 1000.0))
 				_request_tag.write_bit(true)
 				_sorter_wait = 0.0
 				_sorter_state = SorterState.WAITING_OK
@@ -257,7 +256,7 @@ func _step_sorter_handshake(delta: float) -> void:
 				_sorter_state = SorterState.REQUEST_PENDING
 		SorterState.DISCHARGING:
 			_sorter_wait += delta
-			if _sorter_wait >= sorter_discharge_time:
+			if _sorter_wait >= sorter_ok_timeout:
 				_sorter_state = SorterState.GRANTED
 		SorterState.GRANTED:
 			if _spawn_box():
@@ -616,7 +615,7 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 		_request_tag.write_bit(false)
 	_ok_tag.on_group_initialized(tag_group_name_param)
 	if _length_tag.on_group_initialized(tag_group_name_param):
-		_length_tag.write_int32(0)
+		_length_tag.write_int16(0)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
@@ -644,7 +643,7 @@ func _on_simulation_started() -> void:
 	if enable_comms:
 		_request_tag.register(tag_group_name, request_unload_tag_name)
 		_ok_tag.register(tag_group_name, ok_unload_tag_name)
-		_length_tag.register(tag_group_name, box_length_tag_name, OIPCommsTag.TYPE_INT32)
+		_length_tag.register(tag_group_name, box_length_tag_name, OIPCommsTag.TYPE_INT16)
 	elif sorter_mode:
 		push_warning("BoxSpawner '%s' is in sorter mode but comms are disabled — it will not spawn." % name)
 	_sorter_state = SorterState.REQUEST_PENDING
@@ -688,7 +687,7 @@ func _on_simulation_ended() -> void:
 	if _request_tag.is_ready():
 		_request_tag.write_bit(false)
 	if _length_tag.is_ready():
-		_length_tag.write_int32(0)
+		_length_tag.write_int16(0)
 	_sorter_state = SorterState.REQUEST_PENDING
 	_sorter_wait = 0.0
 	_ok_high = false
