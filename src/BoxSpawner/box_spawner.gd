@@ -89,6 +89,9 @@ extends ResizableNode3D
 ## drops and a fresh handshake starts). Doubles as the time to discharge: after the
 ## grant, the box spawns once this many seconds have passed.
 @export_range(0.1, 60.0, 0.1, "or_greater", "suffix:s") var sorter_ok_timeout: float = 5.0
+## Maximum granted boxes awaiting discharge at once. Grants queue the box and the next
+## request goes out immediately; requests pause while the queue is full.
+@export_range(1, 10) var sorter_max_pending: int = 10
 
 @export_group("Barcode Label")
 ## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
@@ -122,9 +125,9 @@ extends ResizableNode3D
 @export var box_length_tag_name: String = ""
 
 # Sorter-mode handshake: raise request + publish next box length -> wait for ok
-# (timeout restarts) -> wait out the discharge time -> spawn -> drop request ->
-# wait for ok to drop -> re-request.
-enum SorterState { REQUEST_PENDING, WAITING_OK, DISCHARGING, GRANTED, WAIT_OK_LOW }
+# (timeout restarts, same box re-offered) -> on grant, queue the box for discharge
+# (it spawns after the ok-timeout period) and immediately hand-shake the next box.
+enum SorterState { REQUEST_PENDING, WAITING_OK, WAIT_OK_LOW }
 
 var _scan_interval: float = 0.0
 var _conveyor_stopped: bool = false
@@ -144,6 +147,12 @@ var _length_tag := OIPCommsTag.new()
 var _sorter_state: SorterState = SorterState.REQUEST_PENDING
 var _sorter_wait: float = 0.0
 var _ok_high: bool = false
+# The box currently offered on the request/length tags (kept across timeouts).
+var _offer_size: Vector3 = Vector3.ZERO
+var _offer_non_conveyable: bool = false
+var _offer_valid: bool = false
+# Granted boxes waiting out their discharge period: {size, non_conveyable, age}.
+var _discharge_queue: Array[Dictionary] = []
 
 @onready var _preview_mesh: MeshInstance3D = $MeshInstance3D
 @onready var disabled_box_texture: MeshInstance3D = $MeshInstance3D2
@@ -201,6 +210,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if sorter_mode:
+		_step_discharge_queue(delta)
 		_step_sorter_handshake(delta)
 		return
 
@@ -229,56 +239,85 @@ func _physics_process(delta: float) -> void:
 ## One tick of the sorter-mode handshake. States: reserve the next box and raise the
 ## request tag while publishing the box length, count up to [member sorter_ok_timeout]
 ## waiting for the PLC's ok (timeout drops the request and restarts — the same box is
-## re-offered), wait out the discharge time (same [member sorter_ok_timeout] value),
-## spawn (retrying while the spawn area is blocked), then wait for the PLC to lower ok
-## before the next request.
+## re-offered). A grant queues the box for discharge and immediately moves on to the
+## next request (once the PLC lowers ok), so several boxes can be in flight; requests
+## pause while [member sorter_max_pending] boxes await discharge.
 func _step_sorter_handshake(delta: float) -> void:
 	if not enable_comms:
 		return
 	match _sorter_state:
 		SorterState.REQUEST_PENDING:
+			if _discharge_queue.size() >= sorter_max_pending:
+				return
 			if _request_tag.is_ready():
-				_reserve_sorter_box()
+				if not _offer_valid:
+					var non_con: bool = _draw_nc_from_bag()
+					_offer_size = _spawn_size_for(non_con)
+					_offer_non_conveyable = non_con
+					_offer_valid = true
 				if _length_tag.is_ready():
-					_length_tag.write_int16(roundi(_pending_spawn_size.x * 1000.0))
+					_length_tag.write_int16(roundi(_offer_size.x * 1000.0))
 				_request_tag.write_bit(true)
 				_sorter_wait = 0.0
 				_sorter_state = SorterState.WAITING_OK
 		SorterState.WAITING_OK:
 			if _ok_high:
-				_sorter_wait = 0.0
-				_sorter_state = SorterState.DISCHARGING
+				_discharge_queue.append({
+					"size": _offer_size,
+					"non_conveyable": _offer_non_conveyable,
+					"age": 0.0,
+				})
+				_offer_valid = false
+				if _request_tag.is_ready():
+					_request_tag.write_bit(false)
+				_sorter_state = SorterState.WAIT_OK_LOW
 				return
 			_sorter_wait += delta
 			if _sorter_wait >= sorter_ok_timeout:
 				if _request_tag.is_ready():
 					_request_tag.write_bit(false)
 				_sorter_state = SorterState.REQUEST_PENDING
-		SorterState.DISCHARGING:
-			_sorter_wait += delta
-			if _sorter_wait >= sorter_ok_timeout:
-				_sorter_state = SorterState.GRANTED
-		SorterState.GRANTED:
-			if _spawn_box():
-				_on_spawn_succeeded()
-				if _request_tag.is_ready():
-					_request_tag.write_bit(false)
-				_sorter_state = SorterState.WAIT_OK_LOW
 		SorterState.WAIT_OK_LOW:
 			if not _ok_high:
 				_sorter_state = SorterState.REQUEST_PENDING
 
 
-## Pre-draw the next box's size/type so its length can be published with the unload
-## request. Uses the pending-spawn slot, so _spawn_box() consumes exactly this box
-## (and a blocked spawn re-queues it for the retry).
-func _reserve_sorter_box() -> void:
-	if _has_pending_spawn_size:
+## Age every granted box; when the oldest has waited out the discharge period
+## (= [member sorter_ok_timeout]), spawn it — retrying while the spawn area is blocked.
+func _step_discharge_queue(delta: float) -> void:
+	if _discharge_queue.is_empty():
 		return
-	var non_con: bool = _draw_nc_from_bag()
-	_pending_spawn_size = _spawn_size_for(non_con)
-	_pending_non_conveyable = non_con
-	_has_pending_spawn_size = true
+	for entry: Dictionary in _discharge_queue:
+		entry["age"] = float(entry["age"]) + delta
+	var head: Dictionary = _discharge_queue[0]
+	if float(head["age"]) < sorter_ok_timeout:
+		return
+	if _spawn_sorter_box(head["size"], head["non_conveyable"]):
+		_discharge_queue.pop_front()
+		_on_spawn_succeeded()
+
+
+## Spawn a specific already-granted box, bypassing the timer-mode size reservation.
+func _spawn_sorter_box(box_size: Vector3, non_conveyable: bool) -> bool:
+	if not scene:
+		return false
+	var box := scene.instantiate() as Box
+	if not box:
+		return false
+	box.size = box_size
+	box.set_meta("_reserved_spawn_size", box_size)
+	box.set_meta("_reserved_non_conveyable", non_conveyable)
+	box.set_meta("_used_pending_spawn_size", false)
+	var spawn_transform := Transform3D(_get_spawn_basis(), global_position)
+	var check_transform := spawn_transform
+	check_transform.origin.y -= 0.5
+	var check_size := Vector3(box.size.x, 1.0, box.size.z)
+	var spawned: bool = _add_box_to_scene(box, spawn_transform, check_transform, check_size)
+	if not spawned:
+		# A blocked spawn re-queued the size into the timer-mode pending slot;
+		# sorter mode keeps the box in its own discharge queue instead.
+		_clear_pending_spawn_size()
+	return spawned
 
 
 func _spawn_box() -> bool:
@@ -649,6 +688,8 @@ func _on_simulation_started() -> void:
 	_sorter_state = SorterState.REQUEST_PENDING
 	_sorter_wait = 0.0
 	_ok_high = false
+	_offer_valid = false
+	_discharge_queue.clear()
 	_reset_spawn_cycle()
 
 
@@ -691,3 +732,5 @@ func _on_simulation_ended() -> void:
 	_sorter_state = SorterState.REQUEST_PENDING
 	_sorter_wait = 0.0
 	_ok_high = false
+	_offer_valid = false
+	_discharge_queue.clear()
