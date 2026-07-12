@@ -129,6 +129,11 @@ extends ResizableNode3D
 # (it spawns after the ok-timeout period) and immediately hand-shake the next box.
 enum SorterState { REQUEST_PENDING, WAITING_OK, WAIT_OK_LOW }
 
+## Minimum time the request line is held low between handshakes. Without it the
+## drop + re-raise can land between two comms polls, so the PLC never sees the
+## falling edge and one long grant releases box after box.
+const _REQUEST_LOW_HOLD: float = 0.1
+
 var _scan_interval: float = 0.0
 var _conveyor_stopped: bool = false
 var _next_spawn_time: float = 0.0
@@ -147,6 +152,8 @@ var _length_tag := OIPCommsTag.new()
 var _sorter_state: SorterState = SorterState.REQUEST_PENDING
 var _sorter_wait: float = 0.0
 var _ok_high: bool = false
+# Remaining low-hold time before the request line may go high again.
+var _request_cooldown: float = 0.0
 # The box currently offered on the request/length tags (kept across timeouts).
 var _offer_size: Vector3 = Vector3.ZERO
 var _offer_non_conveyable: bool = false
@@ -245,8 +252,11 @@ func _physics_process(delta: float) -> void:
 func _step_sorter_handshake(delta: float) -> void:
 	if not enable_comms:
 		return
+	_request_cooldown = maxf(0.0, _request_cooldown - delta)
 	match _sorter_state:
 		SorterState.REQUEST_PENDING:
+			if _request_cooldown > 0.0:
+				return
 			if _discharge_queue.size() >= sorter_max_pending:
 				return
 			if _request_tag.is_ready():
@@ -270,12 +280,14 @@ func _step_sorter_handshake(delta: float) -> void:
 				_offer_valid = false
 				if _request_tag.is_ready():
 					_request_tag.write_bit(false)
+				_request_cooldown = _REQUEST_LOW_HOLD
 				_sorter_state = SorterState.WAIT_OK_LOW
 				return
 			_sorter_wait += delta
 			if _sorter_wait >= sorter_ok_timeout:
 				if _request_tag.is_ready():
 					_request_tag.write_bit(false)
+				_request_cooldown = _REQUEST_LOW_HOLD
 				_sorter_state = SorterState.REQUEST_PENDING
 		SorterState.WAIT_OK_LOW:
 			if not _ok_high:
@@ -688,6 +700,7 @@ func _on_simulation_started() -> void:
 	_sorter_state = SorterState.REQUEST_PENDING
 	_sorter_wait = 0.0
 	_ok_high = false
+	_request_cooldown = 0.0
 	_offer_valid = false
 	_discharge_queue.clear()
 	_reset_spawn_cycle()
@@ -732,5 +745,6 @@ func _on_simulation_ended() -> void:
 	_sorter_state = SorterState.REQUEST_PENDING
 	_sorter_wait = 0.0
 	_ok_high = false
+	_request_cooldown = 0.0
 	_offer_valid = false
 	_discharge_queue.clear()
