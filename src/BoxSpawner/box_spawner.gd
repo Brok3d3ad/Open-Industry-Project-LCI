@@ -75,6 +75,20 @@ extends ResizableNode3D
 			_conveyor_stopped = false
 		update_configuration_warnings()
 
+@export_group("Sorter Mode", "sorter_")
+## PLC-handshake induction. Replaces the timer: the spawner raises the request-unload
+## tag, and spawns a box only when the PLC answers on the ok-unload tag within
+## [member sorter_ok_timeout] seconds. Needs comms enabled and both tags set.
+@export var sorter_mode: bool = false:
+	set(value):
+		if value == sorter_mode:
+			return
+		sorter_mode = value
+		update_configuration_warnings()
+## Seconds to wait for ok-to-unload after raising the request. On timeout the request
+## drops and a fresh handshake starts.
+@export_range(0.1, 60.0, 0.1, "or_greater", "suffix:s") var sorter_ok_timeout: float = 5.0
+
 @export_group("Barcode Label")
 ## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
 ## spawned box. The ScanTunnel reports the id as the parcel passes — unless the labelled face
@@ -91,6 +105,23 @@ extends ResizableNode3D
 ## them (reports '?'s). Default 1%.
 @export_range(0.0, 1.0, 0.01) var no_barcode_chance: float = 0.01
 
+@export_category("Communications")
+## Enable communication with external PLC/control systems (used by sorter mode).
+@export var enable_comms: bool = false
+@export var tag_group_name: String
+@export_custom(0, "tag_group_enum") var tag_groups: String:
+	set(value):
+		tag_group_name = value
+		tag_groups = value
+## Tag the spawner [b]writes[/b]: goes high to request unloading (spawning) a box; drops after the box spawns, on timeout, or when the simulation stops.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+@export var request_unload_tag_name: String = ""
+## Tag the PLC [b]writes[/b]: set high while a request is pending to grant it — the box spawns and the request drops. Lower it again to arm the next handshake.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
+@export var ok_unload_tag_name: String = ""
+
+# Sorter-mode handshake: raise request -> wait for ok (timeout restarts) ->
+# spawn -> drop request -> wait for ok to drop -> re-request.
+enum SorterState { REQUEST_PENDING, WAITING_OK, GRANTED, WAIT_OK_LOW }
+
 var _scan_interval: float = 0.0
 var _conveyor_stopped: bool = false
 var _next_spawn_time: float = 0.0
@@ -103,6 +134,11 @@ var _pending_non_conveyable: bool = false
 var _nc_bag: Array[bool] = []
 var _nc_bag_bpm: int = 0
 var _nc_bag_chance: float = -1.0
+var _request_tag := OIPCommsTag.new()
+var _ok_tag := OIPCommsTag.new()
+var _sorter_state: SorterState = SorterState.REQUEST_PENDING
+var _sorter_wait: float = 0.0
+var _ok_high: bool = false
 
 @onready var _preview_mesh: MeshInstance3D = $MeshInstance3D
 @onready var disabled_box_texture: MeshInstance3D = $MeshInstance3D2
@@ -114,9 +150,21 @@ func _init() -> void:
 	size_default = Vector3(0.6, 0.4, 0.4)
 
 
+func _validate_property(property: Dictionary) -> void:
+	if not OIPCommsSetup.validate_tag_property(property, "tag_group_name", "tag_groups", "request_unload_tag_name"):
+		OIPCommsSetup.validate_tag_property(property, "tag_group_name", "tag_groups", "ok_unload_tag_name")
+
+
 func _enter_tree() -> void:
 	super._enter_tree()
+	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
+	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	_reset_spawn_cycle()
+
+
+func _exit_tree() -> void:
+	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
+	super._exit_tree()
 
 
 func _ready() -> void:
@@ -144,6 +192,10 @@ func _physics_process(delta: float) -> void:
 	if disable or _conveyor_stopped or not Simulation.is_running():
 		return
 
+	if sorter_mode:
+		_step_sorter_handshake(delta)
+		return
+
 	if not _first_spawn_done:
 		if _spawn_box():
 			_first_spawn_done = true
@@ -164,6 +216,39 @@ func _physics_process(delta: float) -> void:
 		if _scan_interval >= _next_spawn_time:
 			if _spawn_box():
 				_on_spawn_succeeded()
+
+
+## One tick of the sorter-mode handshake. States: raise the request tag, count up to
+## [member sorter_ok_timeout] waiting for the PLC's ok (timeout drops the request and
+## restarts), spawn once granted (retrying while the spawn area is blocked), then wait
+## for the PLC to lower ok before requesting the next box.
+func _step_sorter_handshake(delta: float) -> void:
+	if not enable_comms:
+		return
+	match _sorter_state:
+		SorterState.REQUEST_PENDING:
+			if _request_tag.is_ready():
+				_request_tag.write_bit(true)
+				_sorter_wait = 0.0
+				_sorter_state = SorterState.WAITING_OK
+		SorterState.WAITING_OK:
+			if _ok_high:
+				_sorter_state = SorterState.GRANTED
+				return
+			_sorter_wait += delta
+			if _sorter_wait >= sorter_ok_timeout:
+				if _request_tag.is_ready():
+					_request_tag.write_bit(false)
+				_sorter_state = SorterState.REQUEST_PENDING
+		SorterState.GRANTED:
+			if _spawn_box():
+				_on_spawn_succeeded()
+				if _request_tag.is_ready():
+					_request_tag.write_bit(false)
+				_sorter_state = SorterState.WAIT_OK_LOW
+		SorterState.WAIT_OK_LOW:
+			if not _ok_high:
+				_sorter_state = SorterState.REQUEST_PENDING
 
 
 func _spawn_box() -> bool:
@@ -483,11 +568,29 @@ static func _face_basis(normal: Vector3) -> Basis:
 
 
 func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = PackedStringArray()
 	if conveyor == null:
-		return PackedStringArray([
+		warnings.append(
 			"No conveyor assigned — assign one, or place this spawner above a conveyor so it"
-			+ " auto-assigns at simulation start."])
-	return PackedStringArray()
+			+ " auto-assigns at simulation start.")
+	if sorter_mode and (request_unload_tag_name.is_empty() or ok_unload_tag_name.is_empty()):
+		warnings.append(
+			"Sorter mode needs comms enabled and both the request-unload and ok-unload tag"
+			+ " names set — no boxes will spawn until the PLC handshake works.")
+	return warnings
+
+
+func _tag_group_initialized(tag_group_name_param: String) -> void:
+	if _request_tag.on_group_initialized(tag_group_name_param):
+		_request_tag.write_bit(false)
+	_ok_tag.on_group_initialized(tag_group_name_param)
+
+
+func _tag_group_polled(tag_group_name_param: String) -> void:
+	if not enable_comms or not sorter_mode:
+		return
+	if _ok_tag.matches_group(tag_group_name_param) and _ok_tag.is_ready():
+		_ok_high = _ok_tag.read_bit()
 
 
 func _on_simulation_started() -> void:
@@ -505,6 +608,14 @@ func _on_simulation_started() -> void:
 	_barcode_seq = 0
 	if barcode_labels:
 		randomize()                      # fresh barcode sequence each run
+	if enable_comms:
+		_request_tag.register(tag_group_name, request_unload_tag_name)
+		_ok_tag.register(tag_group_name, ok_unload_tag_name)
+	elif sorter_mode:
+		push_warning("BoxSpawner '%s' is in sorter mode but comms are disabled — it will not spawn." % name)
+	_sorter_state = SorterState.REQUEST_PENDING
+	_sorter_wait = 0.0
+	_ok_high = false
 	_reset_spawn_cycle()
 
 
@@ -540,3 +651,8 @@ func _on_simulation_ended() -> void:
 	_clear_pending_spawn_size()
 	_conveyor_stopped = false
 	_barcode_seq = 0
+	if _request_tag.is_ready():
+		_request_tag.write_bit(false)
+	_sorter_state = SorterState.REQUEST_PENDING
+	_sorter_wait = 0.0
+	_ok_high = false
