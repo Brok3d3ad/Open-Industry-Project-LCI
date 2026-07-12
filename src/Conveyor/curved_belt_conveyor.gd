@@ -18,6 +18,15 @@ const MESH_SCALE_FACTOR := 2.0
 		inner_radius = clamped
 		_sync_size_from_dimensions()
 
+## Outer curve edge radius in meters, as dimensioned on layout drawings.
+## Derived ([member inner_radius] + [member width]); setting it adjusts the
+## width while keeping the inner radius fixed. Set the inner radius first.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var outer_radius: float:
+	get:
+		return inner_radius + width
+	set(value):
+		width = value - inner_radius
+
 @export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = BASE_CONVEYOR_WIDTH:
 	set(value):
 		var clamped: float = max(0.1, value)
@@ -376,6 +385,10 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	if property.name == "size":
 		property.usage = PROPERTY_USAGE_STORAGE
+		return
+	if property.name == "outer_radius":
+		# Derived from inner_radius + width — edit in the inspector, never stored.
+		property.usage = PROPERTY_USAGE_EDITOR
 		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
