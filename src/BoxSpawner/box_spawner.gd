@@ -92,6 +92,10 @@ extends ResizableNode3D
 ## Maximum granted boxes awaiting discharge at once. Grants queue the box and the next
 ## request goes out immediately; requests pause while the queue is full.
 @export_range(1, 10) var sorter_max_pending: int = 10
+## Print a timestamped Output line for every sorter handshake event — each tag write,
+## every ok-to-unload change received from the PLC, grants, timeouts and discharges —
+## to tell apart PLC-side and spawner-side misbehaviour.
+@export var sorter_debug: bool = false
 
 @export_group("Barcode Label")
 ## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
@@ -243,6 +247,11 @@ func _physics_process(delta: float) -> void:
 				_on_spawn_succeeded()
 
 
+func _sorter_log(msg: String) -> void:
+	if sorter_debug:
+		print("[%.3f] BoxSpawner '%s': %s" % [Time.get_ticks_msec() / 1000.0, name, msg])
+
+
 ## One tick of the sorter-mode handshake. States: reserve the next box and raise the
 ## request tag while publishing the box length, count up to [member sorter_ok_timeout]
 ## waiting for the PLC's ok (timeout drops the request and restarts — the same box is
@@ -268,6 +277,8 @@ func _step_sorter_handshake(delta: float) -> void:
 				if _length_tag.is_ready():
 					_length_tag.write_int16(roundi(_offer_size.x * 1000.0))
 				_request_tag.write_bit(true)
+				_sorter_log("WRITE request=HIGH, length=%d mm (queue %d/%d)"
+						% [roundi(_offer_size.x * 1000.0), _discharge_queue.size(), sorter_max_pending])
 				_sorter_wait = 0.0
 				_sorter_state = SorterState.WAITING_OK
 		SorterState.WAITING_OK:
@@ -281,6 +292,12 @@ func _step_sorter_handshake(delta: float) -> void:
 				if _request_tag.is_ready():
 					_request_tag.write_bit(false)
 				_request_cooldown = _REQUEST_LOW_HOLD
+				_sorter_log(("GRANT after %.3f s -> box (%d mm) queued for discharge in %.1f s"
+						+ " (queue %d/%d), WRITE request=LOW, waiting for ok=LOW")
+						% [_sorter_wait, roundi(_offer_size.x * 1000.0), sorter_ok_timeout,
+						_discharge_queue.size(), sorter_max_pending])
+				if _discharge_queue.size() >= sorter_max_pending:
+					_sorter_log("queue full — requests paused until a box discharges")
 				_sorter_state = SorterState.WAIT_OK_LOW
 				return
 			_sorter_wait += delta
@@ -288,9 +305,13 @@ func _step_sorter_handshake(delta: float) -> void:
 				if _request_tag.is_ready():
 					_request_tag.write_bit(false)
 				_request_cooldown = _REQUEST_LOW_HOLD
+				_sorter_log("TIMEOUT: no ok within %.1f s -> WRITE request=LOW, retrying same box"
+						% sorter_ok_timeout)
 				_sorter_state = SorterState.REQUEST_PENDING
 		SorterState.WAIT_OK_LOW:
 			if not _ok_high:
+				_sorter_log("ok=LOW seen — handshake complete, next request in %.2f s"
+						% maxf(_request_cooldown, 0.0))
 				_sorter_state = SorterState.REQUEST_PENDING
 
 
@@ -307,6 +328,12 @@ func _step_discharge_queue(delta: float) -> void:
 	if _spawn_sorter_box(head["size"], head["non_conveyable"]):
 		_discharge_queue.pop_front()
 		_on_spawn_succeeded()
+		_sorter_log("SPAWNED box (%d mm) %.3f s after grant (queue %d/%d)"
+				% [roundi((head["size"] as Vector3).x * 1000.0), float(head["age"]),
+				_discharge_queue.size(), sorter_max_pending])
+	elif not head.get("blocked_logged", false):
+		head["blocked_logged"] = true
+		_sorter_log("discharge due but spawn area is BLOCKED — retrying every tick")
 
 
 ## Spawn a specific already-granted box, bypassing the timer-mode size reservation.
@@ -664,6 +691,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	if _request_tag.on_group_initialized(tag_group_name_param):
 		_request_tag.write_bit(false)
+		if sorter_mode:
+			_sorter_log("comms ready — WRITE request=LOW (initial)")
 	_ok_tag.on_group_initialized(tag_group_name_param)
 	if _length_tag.on_group_initialized(tag_group_name_param):
 		_length_tag.write_int16(0)
@@ -673,7 +702,11 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms or not sorter_mode:
 		return
 	if _ok_tag.matches_group(tag_group_name_param) and _ok_tag.is_ready():
-		_ok_high = _ok_tag.read_bit()
+		var new_ok: bool = _ok_tag.read_bit()
+		if new_ok != _ok_high:
+			_sorter_log("RECV ok_to_unload=%s from PLC (state: %s)"
+					% ["HIGH" if new_ok else "LOW", SorterState.keys()[_sorter_state]])
+		_ok_high = new_ok
 
 
 func _on_simulation_started() -> void:
@@ -695,6 +728,11 @@ func _on_simulation_started() -> void:
 		_request_tag.register(tag_group_name, request_unload_tag_name)
 		_ok_tag.register(tag_group_name, ok_unload_tag_name)
 		_length_tag.register(tag_group_name, box_length_tag_name, OIPCommsTag.TYPE_INT16)
+		if sorter_mode:
+			_sorter_log(("sorter mode ON — group='%s' request='%s' ok='%s' length='%s',"
+					+ " ok timeout/discharge %.1f s, max pending %d, low-hold %.2f s")
+					% [tag_group_name, request_unload_tag_name, ok_unload_tag_name,
+					box_length_tag_name, sorter_ok_timeout, sorter_max_pending, _REQUEST_LOW_HOLD])
 	elif sorter_mode:
 		push_warning("BoxSpawner '%s' is in sorter mode but comms are disabled — it will not spawn." % name)
 	_sorter_state = SorterState.REQUEST_PENDING
