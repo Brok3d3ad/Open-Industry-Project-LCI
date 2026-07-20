@@ -87,7 +87,7 @@ var _lb_bodies: Array = []
 var _parcels: Dictionary = {}        # RigidBody3D -> latched DivertDir (sampled at the light barrier)
 var _fully_on: Dictionary = {}       # RigidBody3D -> true once the box is fully on the deck
 var _box_len: Dictionary = {}        # RigidBody3D -> length measured crossing the light barrier
-var _curve_yaw: Dictionary = {}      # RigidBody3D -> yaw (rad, signed) already applied this divert
+var _curve_yaw: Dictionary = {}      # RigidBody3D -> conveyor-local heading at divert start
 var _lb_entry_x: Dictionary = {}     # RigidBody3D -> local X when it tripped the light barrier
 var _sort_counter: int = 0
 # Per-section (per row of rollers) divert state — each row diverts independently.
@@ -741,14 +741,17 @@ func _command_angle(d: int) -> float:
 
 ## Yaw each diverting parcel toward its divert direction so it visibly CURVES into the
 ## takeaway (like a real pivoting-roller unit skews the box) instead of translating
-## sideways still facing down the line. The yaw rate is PACED against the remaining run —
-## remaining angle spread over the time left to the discharge edge — so the box reaches
-## the FULL roller angle exactly by the time it leaves the deck, on any deck length or
-## belt speed. Applied as angular velocity so collisions still resolve through the solver.
+## sideways still facing down the line. CLOSED LOOP: the rotation achieved so far is
+## MEASURED from the body's actual heading (vs its heading when the divert began), so
+## solver losses — roller friction, contact impulses — can't shortchange the turn; the
+## drive keeps steering until the box really sits at the full roller angle. The rate is
+## paced against the time left to the discharge edge, so the turn completes exactly as
+## the box leaves the deck, on any deck length or belt speed.
 func _curve_parcels(delta: float, moving: bool) -> void:
 	if not moving or delta <= 0.0:
 		return
 	var inv: Transform3D = global_transform.affine_inverse()
+	var inv_basis: Basis = global_transform.basis.inverse()
 	var flow: Vector3 = global_transform.basis.x.normalized()
 	var rate_cap: float = deg_to_rad(MAX_YAW_RATE_DEG)
 	for p: Variant in _parcels.keys():
@@ -761,10 +764,21 @@ func _curve_parcels(delta: float, moving: bool) -> void:
 		if ang == 0.0:
 			_curve_yaw.erase(body)   # divert finished (or not begun) — re-arm for the next one
 			continue
-		var applied: float = float(_curve_yaw.get(body, 0.0))
-		var remaining: float = deg_to_rad(ang) - applied
-		if absf(remaining) < 0.005:
-			continue   # already turned the full divert angle
+		# Current heading in conveyor space, flattened to the deck plane.
+		var heading: Vector3 = inv_basis * body.global_transform.basis.x
+		heading.y = 0.0
+		if heading.length_squared() < 1e-6:
+			continue   # degenerate (box tipped on end) — skip this frame
+		heading = heading.normalized()
+		if not _curve_yaw.has(body):
+			_curve_yaw[body] = heading   # reference heading at divert start
+		var start_heading: Vector3 = _curve_yaw[body]
+		# Yaw actually achieved since the divert began (signed about UP, + = LEFT) —
+		# read back from the body, not integrated from what we commanded.
+		var turned: float = atan2(start_heading.cross(heading).y, start_heading.dot(heading))
+		var remaining: float = deg_to_rad(ang) - turned
+		if absf(remaining) < 0.01:
+			continue   # box really sits at the full divert angle
 		# Time left on the deck at the box's ACTUAL forward speed (floored at a quarter of
 		# the belt speed so a briefly-jammed box can't demand an infinite yaw rate).
 		var dist_left: float = maxf(_deck_max_x - (inv * body.global_position).x, 0.0)
@@ -775,7 +789,6 @@ func _curve_parcels(delta: float, moving: bool) -> void:
 		var w: Vector3 = body.angular_velocity
 		w.y = yaw_vel
 		body.angular_velocity = w
-		_curve_yaw[body] = applied + yaw_vel * delta
 #endregion
 
 
