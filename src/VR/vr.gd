@@ -10,7 +10,7 @@ extends BeltConveyor
 ## is laid over the deck instead. The belt's own collision body (`RunBody_*`) is reused
 ## as the transport surface — every physics frame its `constant_linear_velocity` is
 ## rotated about vertical by the divert angle, so a box on the deck is driven STRAIGHT,
-## LEFT or RIGHT (±`MAX_DIVERT_ANGLE`) like the real pivoting roller units.
+## LEFT or RIGHT (±[member divert_angle]) like the real pivoting roller units.
 ##
 ## Drive it with the inherited `speed` (0 = stopped). The divert direction comes from the
 ## PLC destination tags, latched when the assigned sensor blocks (no tag set = STRAIGHT).
@@ -34,7 +34,6 @@ const FLIP_SPIN: bool = false            # reverse the roller roll direction
 const ROLLER_HEIGHT_OFFSET: float = 0.0  # vertical nudge of the roller field
 const SHOW_PANELS: bool = false          # GLB white tiles on top of the deck
 const BODY_DEPTH: float = 0.45           # solid deck slab depth toward the legs
-const MAX_DIVERT_ANGLE: float = 35.0     # pivot angle when diverting
 const BOX_CURVE_DEG_PER_M: float = 30.0  # box yaw into the divert, degrees per metre travelled
 const ROLLER_SPIN_SPEED: float = 8.0     # barrel spin rate
 const STAGGER: bool = true               # brick / staggered layout
@@ -52,6 +51,8 @@ const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys strai
 		sections = value
 		if is_node_ready():
 			_request_rebuild()
+## Roller pivot angle (degrees) when diverting LEFT or RIGHT.
+@export_range(0.0, 45.0, 0.5, "suffix:°") var divert_angle: float = 35.0
 ## Print tracking / divert-signal debug for THIS unit to the output console:
 ## every PLC tag flip (with latch-window state), sensor edges, latched commands,
 ## deck entry and discharge of each tracked box.
@@ -719,9 +720,9 @@ func _section_target_angle(rx: float) -> float:
 
 func _command_angle(d: int) -> float:
 	if d == int(DivertDir.LEFT):
-		return MAX_DIVERT_ANGLE
+		return divert_angle
 	if d == int(DivertDir.RIGHT):
-		return -MAX_DIVERT_ANGLE
+		return -divert_angle
 	return 0.0
 
 
