@@ -13,7 +13,9 @@ extends BeltConveyor
 ## LEFT or RIGHT (±[member divert_angle]) like the real pivoting roller units.
 ##
 ## Drive it with the inherited `speed` (0 = stopped). The divert direction comes from the
-## PLC destination tags, latched when the assigned sensor blocks (no tag set = STRAIGHT).
+## PLC destination tags, latched while the assigned sensor blocks (no tag set = STRAIGHT).
+## The latched command is handed to the physical box when it crosses the infeed light
+## barrier, and the divert wave follows the REAL box from there — prediction can't drift.
 ## Keep the conveyor STRAIGHT (single segment) — the divert assumes a straight deck.
 
 enum DivertDir { STRAIGHT, LEFT, RIGHT }
@@ -34,7 +36,7 @@ const FLIP_SPIN: bool = false            # reverse the roller roll direction
 const ROLLER_HEIGHT_OFFSET: float = 0.0  # vertical nudge of the roller field
 const SHOW_PANELS: bool = false          # GLB white tiles on top of the deck
 const BODY_DEPTH: float = 0.45           # solid deck slab depth toward the legs
-const BOX_CURVE_DEG_PER_M: float = 30.0  # box yaw into the divert, degrees per metre travelled
+const MAX_YAW_RATE_DEG: float = 240.0    # box yaw rate ceiling while curving into the divert
 const ROLLER_SPIN_SPEED: float = 8.0     # barrel spin rate
 const STAGGER: bool = true               # brick / staggered layout
 const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys straight by default
@@ -114,13 +116,17 @@ var _sensor_primed: bool = false                 # first poll after sim start pr
 var _dbg_frame: int = 0                          # debug heartbeat counter
 var _dbg_last_left: bool = false                 # divert-tag edge watcher state
 var _dbg_last_right: bool = false
-## Command seen on the tags while the beam was CLEAR, remembered for the next box.
-## PLCs often latch the direction between boxes and unlatch it the instant the PE
-## blocks — that unlatch can race the poll on the rising-edge frame, so the value
-## observed during the clear period is what the box actually gets.
-var _pending_cmd: int = int(DivertDir.STRAIGHT)
-var _tracked: Array = []                         # [{cmd:int, dist:float, len:float}] predicted boxes
-var _sensor_passing: Dictionary = {}             # the box currently crossing the assigned sensor
+## FIFO of commands latched at the PE, one per box, waiting for their box to
+## physically arrive at the infeed light barrier (where the head entry is claimed).
+var _pending_cmds: Array = []
+## The entry still owning the command channel: the box in the beam, or the one that
+## most recently cleared (until the grace expires). Late L/R tag values land here —
+## and follow through to the physical parcel if the entry was already claimed.
+var _grace_entry: Dictionary = {}
+var _divert_spans: Array = []                    # per-frame [{x, reach, ang}] of fully-on parcels
+var _divert_poll_ms: int = 100                   # divert tag group poll interval (ms)
+var _cmd_grace_ms: int = 300                     # post-PE window a late command still counts (ms)
+var _poll_warned: bool = false                   # one-shot poll-rate-vs-PE-time warning latch
 var _sensor_to_deck_dist: float = 0.0            # assigned sensor -> deck infeed distance (metres)
 # PLC destination tags (BOOL), read when the sensor blocks
 var _div_straight_tag := OIPCommsTag.new()
@@ -505,7 +511,7 @@ func _on_lb_body_entered(b: Node) -> void:
 	if not _lb_bodies.has(b):
 		_lb_bodies.append(b)
 	if b is RigidBody3D:
-		_parcels[b] = _pick_divert()
+		_parcels[b] = _claim_pending_cmd(b as RigidBody3D)
 		_lb_entry_x[b] = _local_x(b)   # leading edge at the barrier — start measuring length
 
 
@@ -523,7 +529,7 @@ func _on_lb_body_exited(b: Node) -> void:
 func _on_deck_body_entered(b: Node) -> void:
 	# Fallback latch if the parcel was dropped on without tripping the light barrier.
 	if b is RigidBody3D and not _parcels.has(b):
-		_parcels[b] = _pick_divert()
+		_parcels[b] = int(DivertDir.STRAIGHT)
 		_fully_on[b] = true   # placed straight onto the deck → already fully on
 
 
@@ -551,13 +557,13 @@ func _physics_process(delta: float) -> void:
 		if _idle_cleaned:
 			return
 		_idle_cleaned = true
-		_tracked.clear()
-		_sensor_passing = {}
+		_pending_cmds.clear()
+		_grace_entry = {}
+		_divert_spans.clear()
 		_sensor_last_detected = false
 		_sensor_primed = false
 		_dbg_last_left = false
 		_dbg_last_right = false
-		_pending_cmd = int(DivertDir.STRAIGHT)
 		_curve_yaw.clear()
 		for ix: int in _section_angle_cur.size():
 			_section_angle_cur[ix] = 0.0
@@ -585,7 +591,8 @@ func _physics_process(delta: float) -> void:
 	var moving: bool = speed != 0.0 and not Simulation.is_paused()
 	if not sensor.is_empty():
 		_poll_sensor()
-		_advance_tracked(delta, moving)
+		_advance_pending(delta, moving)
+	_rebuild_divert_spans()
 	# Each row (section) diverts independently toward the command of the parcel over it.
 	for ix: int in _section_bodies.size():
 		var target: float = _section_target_angle(_section_x[ix]) if moving else 0.0
@@ -622,15 +629,14 @@ func _physics_process(delta: float) -> void:
 			var maxang: float = 0.0
 			for a: float in _section_angle_cur:
 				maxang = maxf(maxang, absf(a))
-			print("[VR %s] run=%s mov=%s sensorSet=%s det=%s d2deck=%.2f tracked=%d maxAng=%.0f comms=%s" % [
+			print("[VR %s] run=%s mov=%s sensorSet=%s det=%s d2deck=%.2f queued=%d parcels=%d maxAng=%.0f comms=%s" % [
 				name, Simulation.is_running(), moving, not sensor.is_empty(), str(det),
-				_sensor_to_deck_dist, _tracked.size(), maxang, enable_comms])
-			if _tracked.size() > 0:
-				var t0: Dictionary = _tracked[0]
-				var front: float = _deck_min_x + (float(t0["dist"]) - _sensor_to_deck_dist)
-				print("   tracked[0]: cmd=%d dist=%.2f len=%.2f measured=%s front=%.2f deck=[%.2f..%.2f]" % [
-					int(t0["cmd"]), float(t0["dist"]), float(t0.get("len", 0.0)),
-					bool(t0.get("measured", false)), front, _deck_min_x, _deck_max_x])
+				_sensor_to_deck_dist, _pending_cmds.size(), _parcels.size(), maxang, enable_comms])
+			if _pending_cmds.size() > 0:
+				var t0: Dictionary = _pending_cmds[0]
+				print("   queued[0]: cmd=%s dist=%.2f inBeam=%s deck=[%.2f..%.2f]" % [
+					_cmd_name(int(t0["cmd"])), float(t0["dist"]),
+					bool(t0.get("in_beam", false)), _deck_min_x, _deck_max_x])
 
 
 ## Yaw each row's barrels to its divert angle by rotating the instance transform about
@@ -664,7 +670,7 @@ func _update_roller_yaws() -> void:
 
 ## True while any box on/inbound to the deck carries a LEFT/RIGHT divert command.
 func _any_divert_command_live() -> bool:
-	for t: Dictionary in _tracked:
+	for t: Dictionary in _pending_cmds:
 		if int(t.get("cmd", 0)) != int(DivertDir.STRAIGHT):
 			return true
 	for p: Variant in _parcels.keys():
@@ -695,32 +701,33 @@ func _set_roller_spin(spin: float) -> void:
 	_roller_shader.set_shader_parameter("u_speed", signed_spin)
 
 
-## Target divert angle (deg) for the section at local X. EVERY row under the box's
-## footprint diverts (and holds until the box leaves it), PLUS a one-section margin both
-## ahead (overshoot) and behind (undershoot) — so the sections actually under the box are
-## never at the toggling band edge, which is what caused the zig-zag.
-func _section_target_angle(rx: float) -> float:
-	if not sensor.is_empty():
-		for t: Dictionary in _tracked:
-			if not bool(t.get("measured", false)):
-				continue   # still crossing the sensor — length not known yet
-			var blen: float = float(t.get("len", BOX_LENGTH))
-			# Predicted leading edge from the sensor: it left the sensor at dist 0 and is
-			# _sensor_to_deck_dist upstream of the infeed.
-			var front: float = _deck_min_x + (float(t["dist"]) - _sensor_to_deck_dist)
-			if front - blen < _deck_min_x:
-				continue   # box tail hasn't cleared the infeed yet → not fully on
-			var center: float = front - blen * 0.5
-			if absf(rx - center) <= blen * 0.5 + _section_pitch:
-				return _command_angle(int(t["cmd"]))
-		return 0.0
+## Per-frame cache of every fully-on parcel's divert span: ACTUAL local X, half-length
+## reach (+ one section margin) and command angle. Built once per physics frame so the
+## per-section angle lookup below doesn't repeat an affine_inverse per parcel per row.
+func _rebuild_divert_spans() -> void:
+	_divert_spans.clear()
+	if _parcels.is_empty():
+		return
+	var inv: Transform3D = global_transform.affine_inverse()
 	for p: Variant in _parcels.keys():
 		if not is_instance_valid(p) or not _fully_on.has(p):
 			continue   # only divert a box once it is fully on the deck
-		var reach2: float = float(_box_len.get(p, BOX_LENGTH)) * 0.5 + _section_pitch
-		var plx: float = (global_transform.affine_inverse() * (p as Node3D).global_position).x
-		if absf(rx - plx) <= reach2:
-			return _command_angle(int(_parcels[p]))
+		_divert_spans.append({
+			"x": (inv * (p as Node3D).global_position).x,
+			"reach": float(_box_len.get(p, BOX_LENGTH)) * 0.5 + _section_pitch,
+			"ang": _command_angle(int(_parcels[p])),
+		})
+
+
+## Target divert angle (deg) for the section at local X. EVERY row under the box's
+## footprint diverts (and holds until the box leaves it), PLUS a one-section margin both
+## ahead (overshoot) and behind (undershoot) — so the sections actually under the box are
+## never at the toggling band edge, which is what caused the zig-zag. Driven by the
+## PHYSICAL box positions (latched at the light barrier), so the wave can't drift.
+func _section_target_angle(rx: float) -> float:
+	for s: Dictionary in _divert_spans:
+		if absf(rx - float(s["x"])) <= float(s["reach"]):
+			return float(s["ang"])
 	return 0.0
 
 
@@ -734,20 +741,23 @@ func _command_angle(d: int) -> float:
 
 ## Yaw each diverting parcel toward its divert direction so it visibly CURVES into the
 ## takeaway (like a real pivoting-roller unit skews the box) instead of translating
-## sideways still facing down the line. Applied as angular velocity so collisions still
-## resolve through the solver; capped at the divert angle total, and the yaw rate scales
-## with belt speed (degrees per metre travelled) so slow lines curve gently.
+## sideways still facing down the line. The yaw rate is PACED against the remaining run —
+## remaining angle spread over the time left to the discharge edge — so the box reaches
+## the FULL roller angle exactly by the time it leaves the deck, on any deck length or
+## belt speed. Applied as angular velocity so collisions still resolve through the solver.
 func _curve_parcels(delta: float, moving: bool) -> void:
 	if not moving or delta <= 0.0:
 		return
-	var rate: float = deg_to_rad(BOX_CURVE_DEG_PER_M) * absf(speed)
+	var inv: Transform3D = global_transform.affine_inverse()
+	var flow: Vector3 = global_transform.basis.x.normalized()
+	var rate_cap: float = deg_to_rad(MAX_YAW_RATE_DEG)
 	for p: Variant in _parcels.keys():
-		if not is_instance_valid(p):
+		if not is_instance_valid(p) or not _fully_on.has(p):
 			continue
 		var body := p as RigidBody3D
 		if body == null or body.freeze or body.sleeping:
 			continue
-		var ang: float = _section_target_angle(_local_x(body))
+		var ang: float = _command_angle(int(_parcels[body]))
 		if ang == 0.0:
 			_curve_yaw.erase(body)   # divert finished (or not begun) — re-arm for the next one
 			continue
@@ -755,12 +765,18 @@ func _curve_parcels(delta: float, moving: bool) -> void:
 		var remaining: float = deg_to_rad(ang) - applied
 		if absf(remaining) < 0.005:
 			continue   # already turned the full divert angle
+		# Time left on the deck at the box's ACTUAL forward speed (floored at a quarter of
+		# the belt speed so a briefly-jammed box can't demand an infinite yaw rate).
+		var dist_left: float = maxf(_deck_max_x - (inv * body.global_position).x, 0.0)
+		var fwd: float = maxf(flow.dot(body.linear_velocity), absf(speed) * 0.25)
+		var time_left: float = maxf(dist_left / maxf(fwd, 0.01), delta)
 		# Same sign convention as the section velocities (Basis about UP): +angle = LEFT.
-		var yaw_vel: float = clampf(remaining / delta, -rate, rate)
+		var yaw_vel: float = clampf(remaining / time_left, -rate_cap, rate_cap)
 		var w: Vector3 = body.angular_velocity
 		w.y = yaw_vel
 		body.angular_velocity = w
 		_curve_yaw[body] = applied + yaw_vel * delta
+#endregion
 
 
 #region Sensor tracking ------------------------------------------------------------
@@ -796,76 +812,99 @@ func _poll_sensor() -> void:
 		_sensor_primed = true
 		_sensor_last_detected = blocked
 		return
-	var live: int = _read_comms_command() if enable_comms else int(DivertDir.STRAIGHT)
-	if not blocked and not _sensor_last_detected:
-		# Beam clear — remember a command raised between boxes. A PLC that unlatches
-		# the tag the instant the PE blocks races the rising-edge read below; the value
-		# held during the clear period is the one the next box is meant to get.
-		if live != int(DivertDir.STRAIGHT):
-			_pending_cmd = live
-	elif blocked and not _sensor_last_detected:
-		# Leading edge hit the sensor — start a box, begin measuring its length.
-		# Until the trailing edge measures it, assume the length equals the
-		# sensor -> first-divert-section distance: the longest a box can be and
-		# still have fully cleared the sensor when its front reaches the deck.
-		# Destination: whatever tag is high right now, else the command remembered
-		# while the beam was clear; nothing either way = STRAIGHT.
-		var assumed_len: float = maxf(0.05, _sensor_to_deck_dist)
-		var cmd: int = live if live != int(DivertDir.STRAIGHT) else _pending_cmd
-		_pending_cmd = int(DivertDir.STRAIGHT)
-		var entry: Dictionary = {"cmd": cmd, "dist": 0.0, "len": assumed_len, "measured": false}
-		_tracked.append(entry)
-		_sensor_passing = entry
+	if blocked and not _sensor_last_detected:
+		# Leading edge hit the sensor — queue a command slot for this box, latched with
+		# whatever tag is high right now (nothing set = STRAIGHT, may still update below).
+		var cmd: int = _read_comms_command() if enable_comms else int(DivertDir.STRAIGHT)
+		var entry: Dictionary = {"cmd": cmd, "dist": 0.0, "in_beam": true,
+				"enter_ms": Time.get_ticks_msec(), "cleared_ms": 0, "body": null}
+		_pending_cmds.append(entry)
+		_grace_entry = entry
 		if debug_logging:
-			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s (live=%s) | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd), _cmd_name(live),
+			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f queued=%d" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd),
 					_div_left_tag.is_ready(), _div_left_tag.is_ready() and _div_left_tag.read_bit(),
 					_div_right_tag.is_ready(), _div_right_tag.is_ready() and _div_right_tag.read_bit(),
-					_sensor_to_deck_dist, assumed_len])
-	elif blocked and _sensor_last_detected:
-		# Box still in the beam — keep reading the PLC; it may set L/R a scan after the PE.
-		if not _sensor_passing.is_empty():
-			if live != int(DivertDir.STRAIGHT) and live != int(_sensor_passing.get("cmd", 0)):
-				_sensor_passing["cmd"] = live
-				if debug_logging:
-					print("[VR %s] t=%.3f +++ PLC set %s while box at sensor" % [
-							name, Time.get_ticks_msec() / 1000.0, _cmd_name(live)])
+					_sensor_to_deck_dist, _pending_cmds.size()])
 	elif not blocked and _sensor_last_detected:
-		# Trailing edge cleared the sensor — distance travelled meanwhile IS the box length.
-		if not _sensor_passing.is_empty():
-			_sensor_passing["len"] = maxf(0.05, float(_sensor_passing["dist"]))
-			_sensor_passing["measured"] = true
+		# Trailing edge cleared the sensor. The command channel stays open for the grace
+		# window (one poll interval + margin), handled in _update_grace_command.
+		if not _grace_entry.is_empty() and bool(_grace_entry.get("in_beam", false)):
+			_grace_entry["in_beam"] = false
+			_grace_entry["cleared_ms"] = Time.get_ticks_msec()
+			# A box that blocks the PE for less than one comms poll can carry a command
+			# the sim never sees — that's a configuration fault, make it loud.
+			var blocked_ms: int = int(_grace_entry["cleared_ms"]) - int(_grace_entry["enter_ms"])
+			if enable_comms and blocked_ms < _divert_poll_ms and not _poll_warned:
+				_poll_warned = true
+				push_warning("VR %s: box blocked the PE for %d ms but tag group \"%s\" polls every %d ms — divert commands can be missed. Slow the line, lengthen the PE gap, or poll faster." % [
+						name, blocked_ms, divert_tag_group_name, _divert_poll_ms])
 			if debug_logging:
-				print("[VR %s] t=%.3f <<< BOX cleared sensor (falling). len=%.3f finalCmd=%s" % [
-						name, Time.get_ticks_msec() / 1000.0, float(_sensor_passing["len"]),
-						_cmd_name(int(_sensor_passing.get("cmd", 0)))])
-			_sensor_passing = {}
+				print("[VR %s] t=%.3f <<< BOX cleared sensor (falling). blocked=%d ms cmd=%s (grace %d ms still open)" % [
+						name, Time.get_ticks_msec() / 1000.0, blocked_ms,
+						_cmd_name(int(_grace_entry.get("cmd", 0))), _cmd_grace_ms])
 	_sensor_last_detected = blocked
+	_update_grace_command()
 
 
-## Advance each predicted box at the roller speed; drop those past the discharge end.
-func _advance_tracked(delta: float, moving: bool) -> void:
-	if moving:
-		for t: Dictionary in _tracked:
-			t["dist"] = float(t["dist"]) + speed * delta
+## While the box blocks the PE — and for the grace window after it clears — keep
+## reading the L/R tags and apply what they say to that box, wherever it is by now
+## (still queued, or already latched onto its physical parcel). In the beam the
+## last non-straight value wins (the PLC may revise); after clearing, only a box
+## still uncommanded accepts a late value, so a held tag can't re-command.
+func _update_grace_command() -> void:
+	if not enable_comms or _grace_entry.is_empty():
+		return
+	var in_beam: bool = bool(_grace_entry.get("in_beam", false))
+	if not in_beam and Time.get_ticks_msec() - int(_grace_entry["cleared_ms"]) > _cmd_grace_ms:
+		_grace_entry = {}
+		return
+	var cur: int = int(_grace_entry.get("cmd", 0))
+	if not in_beam and cur != int(DivertDir.STRAIGHT):
+		return
+	var c: int = _read_comms_command()
+	if c == int(DivertDir.STRAIGHT) or c == cur:
+		return
+	_grace_entry["cmd"] = c
+	# Already handed to a physical box (short sensor->deck run) — update the parcel too.
+	var body: Variant = _grace_entry.get("body")
+	if body != null and is_instance_valid(body) and _parcels.has(body):
+		_parcels[body] = c
+	if debug_logging:
+		print("[VR %s] t=%.3f +++ PLC set %s for the box at the PE (inBeam=%s claimed=%s)" % [
+				name, Time.get_ticks_msec() / 1000.0, _cmd_name(c), in_beam, body != null])
+
+
+## Hand the oldest queued PE command to the box that just physically crossed the
+## infeed light barrier. From here the divert wave follows the REAL body. FIFO is
+## safe because the conveyor between the PE and the deck preserves order.
+func _claim_pending_cmd(b: RigidBody3D) -> int:
+	if _pending_cmds.is_empty():
+		return int(DivertDir.STRAIGHT)
+	var entry: Dictionary = _pending_cmds.pop_front()
+	entry["body"] = b
+	if debug_logging:
+		print("[VR %s] t=%.3f === box on deck, claimed queued cmd=%s (queued left=%d)" % [
+				name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(entry["cmd"])), _pending_cmds.size()])
+	return int(entry["cmd"])
+
+
+## Advance each queued command at the roller speed (an upper bound on the real box's
+## progress) and expire entries whose box never reached the deck — e.g. picked off the
+## line between the PE and the infeed — so a stale command can't hit the wrong box.
+func _advance_pending(delta: float, moving: bool) -> void:
+	if not moving:
+		return
+	var expire_at: float = _sensor_to_deck_dist * 2.0 + 1.0
 	var keep: Array = []
-	for t: Dictionary in _tracked:
-		var blen: float = float(t.get("len", BOX_LENGTH))
-		var front: float = _deck_min_x + (float(t["dist"]) - _sensor_to_deck_dist)
-		if debug_logging and not bool(t.get("dbg_on_deck", false)) \
-				and bool(t.get("measured", false)) and front - blen >= _deck_min_x:
-			t["dbg_on_deck"] = true
-			print("[VR %s] t=%.3f === box fully on deck, wave active. cmd=%s len=%.2f front=%.2f" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"])), blen, front])
-		# Keep diverting while ANY of the box is still on the deck — i.e. until its tail
-		# (front - length) passes the discharge, so the remaining part keeps following it.
-		if front - blen <= _deck_max_x:
+	for t: Dictionary in _pending_cmds:
+		t["dist"] = float(t["dist"]) + absf(speed) * delta
+		if bool(t.get("in_beam", false)) or float(t["dist"]) <= expire_at:
 			keep.append(t)
 		elif debug_logging:
-			print("[VR %s] t=%.3f ~~~ box discharged. cmd=%s len=%.2f measured=%s" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"])), blen,
-					bool(t.get("measured", false))])
-	_tracked = keep
+			print("[VR %s] t=%.3f ~~~ queued cmd=%s EXPIRED — its box never reached the deck" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"]))])
+	_pending_cmds = keep
 
 
 func _cmd_name(c: int) -> String:
@@ -877,8 +916,8 @@ func _cmd_name(c: int) -> String:
 
 
 ## Debug: print every flip of the PLC divert tags, with the latch-window state at
-## that moment — a tag that rises while no box is at the sensor is remembered
-## and applied to the next box that reaches it.
+## that moment — a tag that rises while no box is at the sensor is a command the
+## VR will miss unless it is still set when the next box arrives.
 func _debug_watch_divert_tags() -> void:
 	if not enable_comms:
 		return
@@ -889,11 +928,11 @@ func _debug_watch_divert_tags() -> void:
 	_dbg_last_left = lb
 	_dbg_last_right = rb
 	var beam: String = "BLOCKED" if _sensor_last_detected else "clear"
-	print("[VR %s] t=%.3f DIVERT TAGS: L=%s R=%s | beam=%s boxAtSensor=%s tracked=%d" % [
+	print("[VR %s] t=%.3f DIVERT TAGS: L=%s R=%s | beam=%s graceOpen=%s queued=%d" % [
 			name, Time.get_ticks_msec() / 1000.0, lb, rb, beam,
-			not _sensor_passing.is_empty(), _tracked.size()])
-	if (lb or rb) and _sensor_passing.is_empty() and not _sensor_last_detected:
-		print("[VR %s]    ^ tag rose with NO box at the sensor — remembered; the next box to reach the sensor takes this command" % name)
+			not _grace_entry.is_empty(), _pending_cmds.size()])
+	if (lb or rb) and _grace_entry.is_empty() and not _sensor_last_detected:
+		print("[VR %s]    ^ tag rose with NO box at the sensor and no grace window open — a box gets this command only if the tag is still set when it reaches the sensor" % name)
 
 
 ## Read the PLC destination tags right now: LEFT/RIGHT if set, else STRAIGHT.
@@ -906,22 +945,34 @@ func _read_comms_command() -> int:
 #endregion
 
 
-## Command latched onto a real box at the light barrier — always straight; the
-## sensor + PLC tracking path is the only source of divert commands.
-func _pick_divert() -> int:
-	return int(DivertDir.STRAIGHT)
-#endregion
-
-
 #region Communications -------------------------------------------------------------
 func _enter_tree() -> void:
 	super._enter_tree()
 	divert_tag_group_name = OIPCommsSetup.default_tag_group(divert_tag_group_name)
 
 
+## Poll interval (ms) of the divert tag group, from the same config the comms service
+## registers groups from. Sizes the command grace window and the too-fast-PE warning.
+func _divert_group_poll_ms() -> int:
+	var config := ConfigFile.new()
+	if config.load("res://oip_data/tag_groups.cfg") != OK:
+		return 100
+	var group_count: int = config.get_value("info", "group_count", 0)
+	for i: int in range(group_count):
+		var section: String = "group_" + str(i)
+		if str(config.get_value(section, "name", "")) == divert_tag_group_name:
+			return maxi(10, int(str(config.get_value(section, "polling_rate", "100"))))
+	return 100
+
+
 func _on_simulation_started() -> void:
 	super._on_simulation_started()
+	_poll_warned = false
 	if enable_comms:
+		_divert_poll_ms = _divert_group_poll_ms()
+		# One poll means a command written during the PE block can land one poll late;
+		# two polls plus margin catches it without bleeding onto the next box.
+		_cmd_grace_ms = maxi(300, _divert_poll_ms * 2)
 		_div_straight_tag.register(divert_tag_group_name, straight_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_left_tag.register(divert_tag_group_name, left_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_right_tag.register(divert_tag_group_name, right_tag_name, OIPComms.TAG_TYPE_BOOL)
