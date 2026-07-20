@@ -26,6 +26,9 @@ ConveyorSnapping="*res://addons/oip_ui/Autoload/ConveyorSnapping.gd"
 StructureSnapping="*res://addons/oip_ui/Autoload/StructureSnapping.gd"
 OIPCommsService="*res://src/comms/oip_comms_service.gd"
 SoftPlcBridge="*res://src/comms/soft_plc_bridge.gd"
+SimBoxLogger="*res://addons/plc_sim_comparator/sim_box_logger.gd"
+SceneScanner="*res://addons/plc_sim_comparator/scene_scanner.gd"
+SpawnReplay="*res://addons/plc_sim_comparator/spawn_replay.gd"
 
 [debug]
 
@@ -86,4 +89,3 @@ jolt_physics_3d/simulation/position_steps=20
 jolt_physics_3d/simulation/penetration_slop=0.002
 jolt_physics_3d/simulation/speculative_contact_distance=0.02
 jolt_physics_3d/collisions/collision_margin_fraction=0.0
-common/physics_interpolation=true
