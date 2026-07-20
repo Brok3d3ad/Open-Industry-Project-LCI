@@ -90,6 +90,10 @@ extends ResizableNode3D
 @export_range(0.05, 5.0, 0.05, "or_greater", "suffix:s") var sorter_response_timeout: float = 0.1
 ## Seconds between a grant and the box appearing (the time the real unload takes).
 @export_range(0.0, 60.0, 0.1, "or_greater", "suffix:s") var sorter_discharge_time: float = 5.0
+## Print a timestamped Output line for every sorter handshake event — each offer, the
+## PLC's answer (grant / refusal / timeout), every ok / not-ok tag change received, and
+## each discharge — to tell apart PLC-side and spawner-side misbehaviour.
+@export var sorter_debug: bool = false
 
 @export_group("Barcode Label")
 ## Print a random 1D barcode (e.g. [code]SPx3Dvkhcv_001_v[/code]) on a RANDOM face of every
@@ -261,12 +265,19 @@ func _step_sorter_handshake(delta: float) -> void:
 				"non_conveyable": _offer_non_conveyable,
 				"age": 0.0,
 			})
+			_sorter_log("GRANT after %.3f s -> box (%d mm) discharges in %.1f s (queue %d), WRITE request=LOW"
+					% [_sorter_wait, roundi(_offer_size.x * 1000.0), sorter_discharge_time,
+					_discharge_queue.size()])
 			_end_sorter_request()
 		elif _not_ok_high:
+			_sorter_log("REFUSED after %.3f s -> box (%d mm) discarded, WRITE request=LOW"
+					% [_sorter_wait, roundi(_offer_size.x * 1000.0)])
 			_end_sorter_request()
 		else:
 			_sorter_wait += delta
 			if _sorter_wait >= sorter_response_timeout:
+				_sorter_log("TIMEOUT: no answer within %.2f s -> box (%d mm) discarded, WRITE request=LOW"
+						% [sorter_response_timeout, roundi(_offer_size.x * 1000.0)])
 				_end_sorter_request()
 		return
 	_request_cooldown = maxf(0.0, _request_cooldown - delta)
@@ -282,6 +293,7 @@ func _step_sorter_handshake(delta: float) -> void:
 	_request_tag.write_bit(true)
 	_sorter_wait = 0.0
 	_sorter_waiting = true
+	_sorter_log("OFFER: WRITE request=HIGH, length=%d mm" % roundi(_offer_size.x * 1000.0))
 
 
 ## Drop the request line and re-arm: whatever the outcome was, the next offer is new.
@@ -290,6 +302,11 @@ func _end_sorter_request() -> void:
 	if _request_tag.is_ready():
 		_request_tag.write_bit(false)
 	_request_cooldown = _REQUEST_LOW_HOLD
+
+
+func _sorter_log(msg: String) -> void:
+	if sorter_debug:
+		print("[%.3f] BoxSpawner '%s': %s" % [Time.get_ticks_msec() / 1000.0, name, msg])
 
 
 ## Age every granted box; when the oldest has waited out the discharge period
@@ -305,6 +322,12 @@ func _step_discharge_queue(delta: float) -> void:
 	if _spawn_sorter_box(head["size"], head["non_conveyable"]):
 		_discharge_queue.pop_front()
 		_on_spawn_succeeded()
+		_sorter_log("SPAWNED box (%d mm) %.3f s after grant (queue %d)"
+				% [roundi((head["size"] as Vector3).x * 1000.0), float(head["age"]),
+				_discharge_queue.size()])
+	elif not head.get("blocked_logged", false):
+		head["blocked_logged"] = true
+		_sorter_log("discharge due but spawn area is BLOCKED — retrying every tick")
 
 
 ## Spawn a specific already-granted box, bypassing the timer-mode size reservation.
@@ -672,9 +695,17 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms or not sorter_mode:
 		return
 	if _ok_tag.matches_group(tag_group_name_param) and _ok_tag.is_ready():
-		_ok_high = _ok_tag.read_bit()
+		var new_ok: bool = _ok_tag.read_bit()
+		if new_ok != _ok_high:
+			_sorter_log("RECV ok_to_unload=%s from PLC (waiting=%s)"
+					% ["HIGH" if new_ok else "LOW", _sorter_waiting])
+		_ok_high = new_ok
 	if _not_ok_tag.matches_group(tag_group_name_param) and _not_ok_tag.is_ready():
-		_not_ok_high = _not_ok_tag.read_bit()
+		var new_not_ok: bool = _not_ok_tag.read_bit()
+		if new_not_ok != _not_ok_high:
+			_sorter_log("RECV not_ok_to_unload=%s from PLC (waiting=%s)"
+					% ["HIGH" if new_not_ok else "LOW", _sorter_waiting])
+		_not_ok_high = new_not_ok
 
 
 func _on_simulation_started() -> void:
@@ -697,6 +728,12 @@ func _on_simulation_started() -> void:
 		_ok_tag.register(tag_group_name, ok_unload_tag_name)
 		_not_ok_tag.register(tag_group_name, not_ok_unload_tag_name)
 		_length_tag.register(tag_group_name, box_length_tag_name, OIPCommsTag.TYPE_INT16)
+		if sorter_mode:
+			_sorter_log(("sorter mode ON — group='%s' request='%s' ok='%s' not_ok='%s'"
+					+ " length='%s', answer window %.2f s, discharge %.1f s, low-hold %.2f s")
+					% [tag_group_name, request_unload_tag_name, ok_unload_tag_name,
+					not_ok_unload_tag_name, box_length_tag_name, sorter_response_timeout,
+					sorter_discharge_time, _REQUEST_LOW_HOLD])
 	elif sorter_mode:
 		push_warning("BoxSpawner '%s' is in sorter mode but comms are disabled — it will not spawn." % name)
 	_reset_sorter_state()
