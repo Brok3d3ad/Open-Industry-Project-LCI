@@ -25,7 +25,6 @@ const BOX_COLLISION_MASK: int = 8   # boxes ride on physics layer 4 (value 8)
 const BOX_LENGTH: float = 0.3       # fallback parcel length (no sensor / unmeasured parcel latch)
 const PANEL_NATIVE: float = 0.40    # GLB panel tile is 0.40 m square (native size before scaling)
 const DECK_THICKNESS: float = 0.12  # solid deck slab depth (blue side-guard material)
-# (debug printing is the exported `debug_logging` toggle below)
 
 #region Config ---------------------------------------------------------------------
 # Fixed tuning — hardcoded, intentionally NOT exposed in the inspector.
@@ -55,10 +54,6 @@ const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys strai
 			_request_rebuild()
 ## Roller pivot angle (degrees) when diverting LEFT or RIGHT.
 @export_range(0.0, 45.0, 0.5, "suffix:°") var divert_angle: float = 35.0
-## Print tracking / divert-signal debug for THIS unit to the output console:
-## every PLC tag flip (with latch-window state), sensor edges, latched commands,
-## deck entry and discharge of each tracked box.
-@export var debug_logging: bool = false
 ## The photo eye that detects + measures each box. ASSIGNING it enables sorting; its
 ## physical `detected` flag is used, so a normally-closed sensor works as-is.
 @export_node_path("Node3D") var sensor: NodePath
@@ -99,11 +94,6 @@ var _section_angle_pushed: PackedFloat32Array = PackedFloat32Array()  # last yaw
 var _section_vel_applied: PackedVector3Array = PackedVector3Array()   # last constant velocity written per row
 var _spin_pushed: float = INF                   # last u_speed uniform uploaded
 var _idle_cleaned: bool = false                 # one-shot idle reset latch
-var _deck_fill_mat: ShaderMaterial = null       # VR-owned copy of the deck material
-var _deck_divert_lit: bool = false              # deck currently tinted green
-
-const DECK_TINT_IDLE := Color(2.4, 2.4, 2.4)    # side-guard shader's stock grey tint
-const DECK_TINT_DIVERT := Color(0.25, 2.6, 0.25)  # green while a L/R divert command is live
 var _roller_positions: Array[Vector3] = []      # per-roller local position (for live yaw)
 var _roller_rs: float = 1.0                      # roller instance scale
 var _section_pitch: float = 0.09                 # one section length along flow (the divert unit)
@@ -113,9 +103,6 @@ var _deck_max_x: float = 0.0                    # local X of the deck discharge 
 var _sensor_node: Node = null
 var _sensor_last_detected: bool = false          # edge tracker on the sensor (blocked state)
 var _sensor_primed: bool = false                 # first poll after sim start primes, no edge
-var _dbg_frame: int = 0                          # debug heartbeat counter
-var _dbg_last_left: bool = false                 # divert-tag edge watcher state
-var _dbg_last_right: bool = false
 ## FIFO of commands latched at the PE, one per box, waiting for their box to
 ## physically arrive at the infeed light barrier (where the head entry is claimed).
 var _pending_cmds: Array = []
@@ -363,24 +350,8 @@ func _build_deck_fill(min_x: float, max_x: float, min_z: float, max_z: float, to
 	var bm := BoxMesh.new()
 	bm.size = Vector3(maxf(0.05, max_x - min_x), depth, maxf(0.05, max_z - min_z))
 	fill.mesh = bm
-	fill.set_surface_override_material(0, _ensure_deck_fill_mat(fill))
+	fill.set_surface_override_material(0, SideGuardMesh.create_material())
 	fill.position = Vector3((min_x + max_x) * 0.5, deck_top - depth * 0.5, (min_z + max_z) * 0.5)
-
-
-## VR-owned copy of the shared guard material (so the divert tint never leaks into
-## side guards elsewhere), installed on the deck fill. Lazy: also heals a deck node
-## that predates the material (e.g. after a script hot-reload without a rebuild).
-func _ensure_deck_fill_mat(fill_hint: MeshInstance3D = null) -> ShaderMaterial:
-	if _deck_fill_mat == null:
-		_deck_fill_mat = SideGuardMesh.create_material().duplicate() as ShaderMaterial
-		_deck_fill_mat.set_shader_parameter("color_tint",
-				DECK_TINT_DIVERT if _deck_divert_lit else DECK_TINT_IDLE)
-	var fill: MeshInstance3D = fill_hint
-	if fill == null:
-		fill = get_node_or_null("_VRDeckFill") as MeshInstance3D
-	if fill != null and fill.get_surface_override_material(0) != _deck_fill_mat:
-		fill.set_surface_override_material(0, _deck_fill_mat)
-	return _deck_fill_mat
 
 
 func _ensure_mm_inst(node_name: String, cached: MultiMeshInstance3D) -> MultiMeshInstance3D:
@@ -562,8 +533,6 @@ func _physics_process(delta: float) -> void:
 		_divert_spans.clear()
 		_sensor_last_detected = false
 		_sensor_primed = false
-		_dbg_last_left = false
-		_dbg_last_right = false
 		_curve_yaw.clear()
 		for ix: int in _section_angle_cur.size():
 			_section_angle_cur[ix] = 0.0
@@ -575,11 +544,8 @@ func _physics_process(delta: float) -> void:
 				_section_vel_applied[ix] = Vector3.ZERO
 		_update_roller_yaws()
 		_set_roller_spin(0.0)
-		_set_deck_divert_lit(false)
 		return
 	_idle_cleaned = false
-	if debug_logging:
-		_debug_watch_divert_tags()
 	# drop parcels that left the scene
 	for p: Variant in _parcels.keys():
 		if not is_instance_valid(p):
@@ -618,25 +584,6 @@ func _physics_process(delta: float) -> void:
 	_curve_parcels(delta, moving)
 	_set_roller_spin(ROLLER_SPIN_SPEED if moving else 0.0)
 	_update_roller_yaws()
-	_set_deck_divert_lit(_any_divert_command_live())
-	if debug_logging:
-		_dbg_frame += 1
-		if _dbg_frame % 60 == 0:
-			var n: Node = _resolve_sensor()
-			var det: Variant = "NO-NODE/PROP"
-			if n != null and "detected" in n:
-				det = n.get("detected")
-			var maxang: float = 0.0
-			for a: float in _section_angle_cur:
-				maxang = maxf(maxang, absf(a))
-			print("[VR %s] run=%s mov=%s sensorSet=%s det=%s d2deck=%.2f queued=%d parcels=%d maxAng=%.0f comms=%s" % [
-				name, Simulation.is_running(), moving, not sensor.is_empty(), str(det),
-				_sensor_to_deck_dist, _pending_cmds.size(), _parcels.size(), maxang, enable_comms])
-			if _pending_cmds.size() > 0:
-				var t0: Dictionary = _pending_cmds[0]
-				print("   queued[0]: cmd=%s dist=%.2f inBeam=%s deck=[%.2f..%.2f]" % [
-					_cmd_name(int(t0["cmd"])), float(t0["dist"]),
-					bool(t0.get("in_beam", false)), _deck_min_x, _deck_max_x])
 
 
 ## Yaw each row's barrels to its divert angle by rotating the instance transform about
@@ -666,28 +613,6 @@ func _update_roller_yaws() -> void:
 				return
 			mm.set_instance_transform(idx, Transform3D(yaw_basis, _roller_positions[idx]) * _roller_xform)
 			idx += 1
-
-
-## True while any box on/inbound to the deck carries a LEFT/RIGHT divert command.
-func _any_divert_command_live() -> bool:
-	for t: Dictionary in _pending_cmds:
-		if int(t.get("cmd", 0)) != int(DivertDir.STRAIGHT):
-			return true
-	for p: Variant in _parcels.keys():
-		if is_instance_valid(p) and int(_parcels[p]) != int(DivertDir.STRAIGHT):
-			return true
-	return false
-
-
-## Tint the deck green while a divert command is live; grey otherwise. Change-gated.
-func _set_deck_divert_lit(lit: bool) -> void:
-	if lit == _deck_divert_lit:
-		return
-	_deck_divert_lit = lit
-	var mat: ShaderMaterial = _ensure_deck_fill_mat()
-	if mat != null:
-		mat.set_shader_parameter("color_tint",
-				DECK_TINT_DIVERT if lit else DECK_TINT_IDLE)
 
 
 ## Upload the spin uniform only when it changes (it's constant while running).
@@ -833,12 +758,6 @@ func _poll_sensor() -> void:
 				"enter_ms": Time.get_ticks_msec(), "cleared_ms": 0, "body": null}
 		_pending_cmds.append(entry)
 		_grace_entry = entry
-		if debug_logging:
-			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f queued=%d" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd),
-					_div_left_tag.is_ready(), _div_left_tag.is_ready() and _div_left_tag.read_bit(),
-					_div_right_tag.is_ready(), _div_right_tag.is_ready() and _div_right_tag.read_bit(),
-					_sensor_to_deck_dist, _pending_cmds.size()])
 	elif not blocked and _sensor_last_detected:
 		# Trailing edge cleared the sensor. The command channel stays open for the grace
 		# window (one poll interval + margin), handled in _update_grace_command.
@@ -852,10 +771,6 @@ func _poll_sensor() -> void:
 				_poll_warned = true
 				push_warning("VR %s: box blocked the PE for %d ms but tag group \"%s\" polls every %d ms — divert commands can be missed. Slow the line, lengthen the PE gap, or poll faster." % [
 						name, blocked_ms, divert_tag_group_name, _divert_poll_ms])
-			if debug_logging:
-				print("[VR %s] t=%.3f <<< BOX cleared sensor (falling). blocked=%d ms cmd=%s (grace %d ms still open)" % [
-						name, Time.get_ticks_msec() / 1000.0, blocked_ms,
-						_cmd_name(int(_grace_entry.get("cmd", 0))), _cmd_grace_ms])
 	_sensor_last_detected = blocked
 	_update_grace_command()
 
@@ -883,9 +798,6 @@ func _update_grace_command() -> void:
 	var body: Variant = _grace_entry.get("body")
 	if body != null and is_instance_valid(body) and _parcels.has(body):
 		_parcels[body] = c
-	if debug_logging:
-		print("[VR %s] t=%.3f +++ PLC set %s for the box at the PE (inBeam=%s claimed=%s)" % [
-				name, Time.get_ticks_msec() / 1000.0, _cmd_name(c), in_beam, body != null])
 
 
 ## Hand the oldest queued PE command to the box that just physically crossed the
@@ -896,9 +808,6 @@ func _claim_pending_cmd(b: RigidBody3D) -> int:
 		return int(DivertDir.STRAIGHT)
 	var entry: Dictionary = _pending_cmds.pop_front()
 	entry["body"] = b
-	if debug_logging:
-		print("[VR %s] t=%.3f === box on deck, claimed queued cmd=%s (queued left=%d)" % [
-				name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(entry["cmd"])), _pending_cmds.size()])
 	return int(entry["cmd"])
 
 
@@ -914,38 +823,7 @@ func _advance_pending(delta: float, moving: bool) -> void:
 		t["dist"] = float(t["dist"]) + absf(speed) * delta
 		if bool(t.get("in_beam", false)) or float(t["dist"]) <= expire_at:
 			keep.append(t)
-		elif debug_logging:
-			print("[VR %s] t=%.3f ~~~ queued cmd=%s EXPIRED — its box never reached the deck" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(int(t["cmd"]))])
 	_pending_cmds = keep
-
-
-func _cmd_name(c: int) -> String:
-	if c == int(DivertDir.LEFT):
-		return "LEFT"
-	if c == int(DivertDir.RIGHT):
-		return "RIGHT"
-	return "STRAIGHT"
-
-
-## Debug: print every flip of the PLC divert tags, with the latch-window state at
-## that moment — a tag that rises while no box is at the sensor is a command the
-## VR will miss unless it is still set when the next box arrives.
-func _debug_watch_divert_tags() -> void:
-	if not enable_comms:
-		return
-	var lb: bool = _div_left_tag.is_ready() and _div_left_tag.read_bit()
-	var rb: bool = _div_right_tag.is_ready() and _div_right_tag.read_bit()
-	if lb == _dbg_last_left and rb == _dbg_last_right:
-		return
-	_dbg_last_left = lb
-	_dbg_last_right = rb
-	var beam: String = "BLOCKED" if _sensor_last_detected else "clear"
-	print("[VR %s] t=%.3f DIVERT TAGS: L=%s R=%s | beam=%s graceOpen=%s queued=%d" % [
-			name, Time.get_ticks_msec() / 1000.0, lb, rb, beam,
-			not _grace_entry.is_empty(), _pending_cmds.size()])
-	if (lb or rb) and _grace_entry.is_empty() and not _sensor_last_detected:
-		print("[VR %s]    ^ tag rose with NO box at the sensor and no grace window open — a box gets this command only if the tag is still set when it reaches the sensor" % name)
 
 
 ## Read the PLC destination tags right now: LEFT/RIGHT if set, else STRAIGHT.
