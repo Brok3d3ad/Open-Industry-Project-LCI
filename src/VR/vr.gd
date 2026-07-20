@@ -114,6 +114,11 @@ var _sensor_primed: bool = false                 # first poll after sim start pr
 var _dbg_frame: int = 0                          # debug heartbeat counter
 var _dbg_last_left: bool = false                 # divert-tag edge watcher state
 var _dbg_last_right: bool = false
+## Command seen on the tags while the beam was CLEAR, remembered for the next box.
+## PLCs often latch the direction between boxes and unlatch it the instant the PE
+## blocks — that unlatch can race the poll on the rising-edge frame, so the value
+## observed during the clear period is what the box actually gets.
+var _pending_cmd: int = int(DivertDir.STRAIGHT)
 var _tracked: Array = []                         # [{cmd:int, dist:float, len:float}] predicted boxes
 var _sensor_passing: Dictionary = {}             # the box currently crossing the assigned sensor
 var _sensor_to_deck_dist: float = 0.0            # assigned sensor -> deck infeed distance (metres)
@@ -552,6 +557,7 @@ func _physics_process(delta: float) -> void:
 		_sensor_primed = false
 		_dbg_last_left = false
 		_dbg_last_right = false
+		_pending_cmd = int(DivertDir.STRAIGHT)
 		_curve_yaw.clear()
 		for ix: int in _section_angle_cur.size():
 			_section_angle_cur[ix] = 0.0
@@ -790,32 +796,40 @@ func _poll_sensor() -> void:
 		_sensor_primed = true
 		_sensor_last_detected = blocked
 		return
-	if blocked and not _sensor_last_detected:
+	var live: int = _read_comms_command() if enable_comms else int(DivertDir.STRAIGHT)
+	if not blocked and not _sensor_last_detected:
+		# Beam clear — remember a command raised between boxes. A PLC that unlatches
+		# the tag the instant the PE blocks races the rising-edge read below; the value
+		# held during the clear period is the one the next box is meant to get.
+		if live != int(DivertDir.STRAIGHT):
+			_pending_cmd = live
+	elif blocked and not _sensor_last_detected:
 		# Leading edge hit the sensor — start a box, begin measuring its length.
 		# Until the trailing edge measures it, assume the length equals the
 		# sensor -> first-divert-section distance: the longest a box can be and
 		# still have fully cleared the sensor when its front reaches the deck.
-		# Destination is whatever tag is high right now; nothing set = STRAIGHT.
+		# Destination: whatever tag is high right now, else the command remembered
+		# while the beam was clear; nothing either way = STRAIGHT.
 		var assumed_len: float = maxf(0.05, _sensor_to_deck_dist)
-		var cmd: int = _read_comms_command() if enable_comms else int(DivertDir.STRAIGHT)
+		var cmd: int = live if live != int(DivertDir.STRAIGHT) else _pending_cmd
+		_pending_cmd = int(DivertDir.STRAIGHT)
 		var entry: Dictionary = {"cmd": cmd, "dist": 0.0, "len": assumed_len, "measured": false}
 		_tracked.append(entry)
 		_sensor_passing = entry
 		if debug_logging:
-			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
-					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd),
+			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s (live=%s) | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd), _cmd_name(live),
 					_div_left_tag.is_ready(), _div_left_tag.is_ready() and _div_left_tag.read_bit(),
 					_div_right_tag.is_ready(), _div_right_tag.is_ready() and _div_right_tag.read_bit(),
 					_sensor_to_deck_dist, assumed_len])
 	elif blocked and _sensor_last_detected:
 		# Box still in the beam — keep reading the PLC; it may set L/R a scan after the PE.
-		if enable_comms and not _sensor_passing.is_empty():
-			var c: int = _read_comms_command()
-			if c != int(DivertDir.STRAIGHT) and c != int(_sensor_passing.get("cmd", 0)):
-				_sensor_passing["cmd"] = c
+		if not _sensor_passing.is_empty():
+			if live != int(DivertDir.STRAIGHT) and live != int(_sensor_passing.get("cmd", 0)):
+				_sensor_passing["cmd"] = live
 				if debug_logging:
 					print("[VR %s] t=%.3f +++ PLC set %s while box at sensor" % [
-							name, Time.get_ticks_msec() / 1000.0, _cmd_name(c)])
+							name, Time.get_ticks_msec() / 1000.0, _cmd_name(live)])
 	elif not blocked and _sensor_last_detected:
 		# Trailing edge cleared the sensor — distance travelled meanwhile IS the box length.
 		if not _sensor_passing.is_empty():
@@ -863,8 +877,8 @@ func _cmd_name(c: int) -> String:
 
 
 ## Debug: print every flip of the PLC divert tags, with the latch-window state at
-## that moment — a tag that rises while no box is at the sensor is a command the
-## VR will miss unless it is still set when the next box arrives.
+## that moment — a tag that rises while no box is at the sensor is remembered
+## and applied to the next box that reaches it.
 func _debug_watch_divert_tags() -> void:
 	if not enable_comms:
 		return
@@ -879,7 +893,7 @@ func _debug_watch_divert_tags() -> void:
 			name, Time.get_ticks_msec() / 1000.0, lb, rb, beam,
 			not _sensor_passing.is_empty(), _tracked.size()])
 	if (lb or rb) and _sensor_passing.is_empty() and not _sensor_last_detected:
-		print("[VR %s]    ^ tag rose with NO box at the sensor — outside the latch window; a box gets this command only if the tag is still set when it reaches the sensor" % name)
+		print("[VR %s]    ^ tag rose with NO box at the sensor — remembered; the next box to reach the sensor takes this command" % name)
 
 
 ## Read the PLC destination tags right now: LEFT/RIGHT if set, else STRAIGHT.
