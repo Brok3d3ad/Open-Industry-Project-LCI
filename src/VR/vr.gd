@@ -69,14 +69,6 @@ const ROLLER_ROTATION_DEG: float = 90.0  # barrels across flow → conveys strai
 @export var straight_tag_name: String = ""
 @export var left_tag_name: String = ""
 @export var right_tag_name: String = ""
-## OPTIONAL lossless command interface (recommended over the L/R bit pulses):
-## for each decided box the PLC writes the direction to [member command_dir_tag_name]
-## (0 = STRAIGHT, 1 = LEFT, 2 = RIGHT) and THEN increments this DINT counter.
-## Retained values survive any comms poll rate — no pulse can fall between polls.
-## When both names are set, the L/R bit tags are ignored.
-@export var command_seq_tag_name: String = ""
-## Direction value read when [member command_seq_tag_name] changes. Datatype: DINT.
-@export var command_dir_tag_name: String = ""
 #endregion
 
 # Internal generated nodes / caches
@@ -121,10 +113,6 @@ var _sensor_primed: bool = false                 # first poll after sim start pr
 var _dbg_frame: int = 0                          # debug heartbeat counter
 var _dbg_last_left: bool = false                 # divert-tag edge watcher state
 var _dbg_last_right: bool = false
-## The box that currently owns the L/R command channel: the box in the beam, or
-## the one that most recently cleared (until the grace expires or the next box
-## enters). Any L/R pulse is attributed to this box and nothing else.
-var _cmd_owner: Dictionary = {}
 var _tracked: Array = []                         # [{cmd:int, dist:float, len:float}] predicted boxes
 var _sensor_passing: Dictionary = {}             # the box currently crossing the assigned sensor
 var _sensor_to_deck_dist: float = 0.0            # assigned sensor -> deck infeed distance (metres)
@@ -132,11 +120,6 @@ var _sensor_to_deck_dist: float = 0.0            # assigned sensor -> deck infee
 var _div_straight_tag := OIPCommsTag.new()
 var _div_left_tag := OIPCommsTag.new()
 var _div_right_tag := OIPCommsTag.new()
-# Lossless counter interface (optional; overrides the bit tags when configured)
-var _cmd_seq_tag := OIPCommsTag.new()
-var _cmd_dir_tag := OIPCommsTag.new()
-var _last_cmd_seq: int = 0
-var _cmd_seq_primed: bool = false
 # GLB unit (one panel + one roller), measured once
 var _panel_mesh: Mesh = null
 var _panel_xform: Transform3D = Transform3D.IDENTITY
@@ -568,8 +551,6 @@ func _physics_process(delta: float) -> void:
 		_sensor_primed = false
 		_dbg_last_left = false
 		_dbg_last_right = false
-		_cmd_owner = {}
-		_cmd_seq_primed = false
 		_curve_yaw.clear()
 		for ix: int in _section_angle_cur.size():
 			_section_angle_cur[ix] = 0.0
@@ -597,7 +578,6 @@ func _physics_process(delta: float) -> void:
 	var moving: bool = speed != 0.0 and not Simulation.is_paused()
 	if not sensor.is_empty():
 		_poll_sensor()
-		_attach_pending_command()
 		_advance_tracked(delta, moving)
 	# Each row (section) diverts independently toward the command of the parcel over it.
 	for ix: int in _section_bodies.size():
@@ -814,23 +794,27 @@ func _poll_sensor() -> void:
 		# Until the trailing edge measures it, assume the length equals the
 		# sensor -> first-divert-section distance: the longest a box can be and
 		# still have fully cleared the sensor when its front reaches the deck.
-		# Destination comes from the PLC tags only; nothing set = STRAIGHT.
+		# Destination is whatever tag is high right now; nothing set = STRAIGHT.
 		var assumed_len: float = maxf(0.05, _sensor_to_deck_dist)
-		# Start STRAIGHT; the command is attached later from the tags while THIS
-		# box owns the channel (in the beam + grace). The new box takes ownership
-		# from the previous one, which is now locked to whatever it received.
-		var entry: Dictionary = {"cmd": int(DivertDir.STRAIGHT), "dist": 0.0, "len": assumed_len,
-				"measured": false, "t_enter_ms": Time.get_ticks_msec()}
+		var cmd: int = _read_comms_command() if enable_comms else int(DivertDir.STRAIGHT)
+		var entry: Dictionary = {"cmd": cmd, "dist": 0.0, "len": assumed_len, "measured": false}
 		_tracked.append(entry)
 		_sensor_passing = entry
-		if not _cmd_seq_active():
-			_cmd_owner = entry
 		if debug_logging:
-			print("[VR %s] t=%.3f >>> BOX at sensor (rising). took command channel | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
-					name, Time.get_ticks_msec() / 1000.0,
+			print("[VR %s] t=%.3f >>> BOX at sensor (rising). cmd=%s | L(ready=%s bit=%s) R(ready=%s bit=%s) d2deck=%.2f assumedLen=%.2f" % [
+					name, Time.get_ticks_msec() / 1000.0, _cmd_name(cmd),
 					_div_left_tag.is_ready(), _div_left_tag.is_ready() and _div_left_tag.read_bit(),
 					_div_right_tag.is_ready(), _div_right_tag.is_ready() and _div_right_tag.read_bit(),
 					_sensor_to_deck_dist, assumed_len])
+	elif blocked and _sensor_last_detected:
+		# Box still in the beam — keep reading the PLC; it may set L/R a scan after the PE.
+		if enable_comms and not _sensor_passing.is_empty():
+			var c: int = _read_comms_command()
+			if c != int(DivertDir.STRAIGHT) and c != int(_sensor_passing.get("cmd", 0)):
+				_sensor_passing["cmd"] = c
+				if debug_logging:
+					print("[VR %s] t=%.3f +++ PLC set %s while box at sensor" % [
+							name, Time.get_ticks_msec() / 1000.0, _cmd_name(c)])
 	elif not blocked and _sensor_last_detected:
 		# Trailing edge cleared the sensor — distance travelled meanwhile IS the box length.
 		if not _sensor_passing.is_empty():
@@ -842,94 +826,6 @@ func _poll_sensor() -> void:
 						_cmd_name(int(_sensor_passing.get("cmd", 0)))])
 			_sensor_passing = {}
 	_sensor_last_detected = blocked
-
-
-## Grace after the trailing edge during which a late-delivered command still
-## counts for the box that just cleared. It also closes early the moment the
-## next box enters the beam (that box becomes the new owner). Sized to one comms
-## poll plus margin — long enough to catch a command set while the box was
-## blocking but delivered a poll late, short enough not to bleed onto neighbours.
-const CMD_GRACE_S: float = 0.3
-
-## Attribute an L/R pulse to whichever box currently OWNS the command channel.
-## Ownership is unambiguous: the box in the beam owns it; when it clears it keeps
-## ownership for CMD_GRACE_S (or until the next box enters). Because the PLC only
-## sets the tag while a box blocks the PE, a pulse seen with no owner (or after
-## the grace) belongs to no tracked box and is dropped rather than mis-assigned.
-func _attach_pending_command() -> void:
-	if not enable_comms:
-		return
-	if _cmd_seq_active():
-		_attach_seq_command()
-		return
-	# Expire ownership once the owner cleared longer than the grace window ago.
-	if not _cmd_owner.is_empty() and bool(_cmd_owner.get("measured", false)):
-		var since_clear: float = float(_cmd_owner["dist"]) - float(_cmd_owner.get("len", BOX_LENGTH))
-		if since_clear > absf(speed) * CMD_GRACE_S:
-			_cmd_owner = {}
-	var c: int = _read_comms_command()
-	if c == int(DivertDir.STRAIGHT):
-		return
-	if _cmd_owner.is_empty():
-		return   # tag high with no box owning the channel — not a tracked box's command
-	if int(_cmd_owner.get("cmd", 0)) != int(DivertDir.STRAIGHT):
-		return   # already commanded this box; a held level never re-commands
-	_cmd_owner["cmd"] = c
-	if debug_logging:
-		print("[VR %s] t=%.3f +++ %s attached to owner box %.2f m past sensor (inBeam=%s)" % [
-				name, Time.get_ticks_msec() / 1000.0, _cmd_name(c), float(_cmd_owner["dist"]),
-				not bool(_cmd_owner.get("measured", false))])
-
-
-func _cmd_seq_active() -> bool:
-	return command_seq_tag_name != "" and command_dir_tag_name != ""
-
-
-## Counter interface: a CHANGE of the retained sequence DINT is one command for
-## one box; the direction DINT says which way. Retained values can't be missed
-## by polling, so nothing here depends on pulse widths or edge timing.
-func _attach_seq_command() -> void:
-	if not _cmd_seq_tag.is_ready() or not _cmd_dir_tag.is_ready():
-		return
-	var seq: int = _cmd_seq_tag.read_int32()
-	if not _cmd_seq_primed:
-		# First read after the group comes online is the baseline, not a command.
-		_cmd_seq_primed = true
-		_last_cmd_seq = seq
-		return
-	if seq == _last_cmd_seq:
-		return
-	_last_cmd_seq = seq
-	var dir: int = _cmd_dir_tag.read_int32()
-	var c: int = int(DivertDir.STRAIGHT)
-	if dir == 1:
-		c = int(DivertDir.LEFT)
-	elif dir == 2:
-		c = int(DivertDir.RIGHT)
-	if debug_logging:
-		print("[VR %s] t=%.3f SEQ command #%d dir=%s" % [
-				name, Time.get_ticks_msec() / 1000.0, seq, _cmd_name(c)])
-	if c == int(DivertDir.STRAIGHT):
-		return
-	# The counter is retained and lossless, so ownership timing doesn't matter:
-	# attach to the box in the beam, else the one that most recently cleared.
-	var t: Dictionary = _cmd_owner if not _cmd_owner.is_empty() else _last_cleared_box()
-	if t.is_empty():
-		if debug_logging:
-			print("[VR %s]    !!! SEQ command #%d ORPHANED — no box at the sensor" % [name, seq])
-		return
-	t["cmd"] = c
-	if debug_logging:
-		print("[VR %s]    +++ attached to box %.2f m past sensor (inBeam=%s)" % [
-				name, float(t["dist"]), not bool(t.get("measured", false))])
-
-
-## Most recently cleared tracked box still on the deck (for the seq interface).
-func _last_cleared_box() -> Dictionary:
-	for i: int in range(_tracked.size() - 1, -1, -1):
-		if bool(_tracked[i].get("measured", false)):
-			return _tracked[i]
-	return {}
 
 
 ## Advance each predicted box at the roller speed; drop those past the discharge end.
@@ -1014,11 +910,6 @@ func _on_simulation_started() -> void:
 		_div_straight_tag.register(divert_tag_group_name, straight_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_left_tag.register(divert_tag_group_name, left_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_div_right_tag.register(divert_tag_group_name, right_tag_name, OIPComms.TAG_TYPE_BOOL)
-		if command_seq_tag_name != "":
-			_cmd_seq_tag.register(divert_tag_group_name, command_seq_tag_name, OIPComms.TAG_TYPE_INT32)
-		if command_dir_tag_name != "":
-			_cmd_dir_tag.register(divert_tag_group_name, command_dir_tag_name, OIPComms.TAG_TYPE_INT32)
-		_cmd_seq_primed = false
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -1026,8 +917,6 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	_div_straight_tag.on_group_initialized(tag_group_name_param)
 	_div_left_tag.on_group_initialized(tag_group_name_param)
 	_div_right_tag.on_group_initialized(tag_group_name_param)
-	_cmd_seq_tag.on_group_initialized(tag_group_name_param)
-	_cmd_dir_tag.on_group_initialized(tag_group_name_param)
 
 
 func _validate_property(property: Dictionary) -> void:
