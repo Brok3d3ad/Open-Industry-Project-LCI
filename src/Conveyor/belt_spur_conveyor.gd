@@ -8,100 +8,19 @@ extends ResizableNode3D
 const _MIN_SLOT_LENGTH: float = 0.05
 const _GAP_FILL_DEPTH: float = 0.05
 
-## Length of the LEFT (-Z) side along the flow axis, in meters. Internal facade —
-## the inspector exposes [member short_side_length] / [member long_side_length].
-## Stored as [code]size.x[/code] (centerline) plus [member angle_downstream].
-var length: float = 2.0:
+## Spur length along the flow axis in meters.
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
-		_set_side_lengths(value, length_right)
+		size = Vector3(value, size.y, size.z)
 	get:
-		return size.x - tan(angle_downstream) * (size.z * 0.5)
+		return size.x
 
-## Length of the RIGHT (+Z) side along the flow axis, in meters. See [member length].
-var length_right: float = 2.0:
+## Spur width across the flow axis in meters.
+@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
 	set(value):
-		_set_side_lengths(length, value)
+		size = Vector3(size.x, size.y, value)
 	get:
-		return size.x + tan(angle_downstream) * (size.z * 0.5)
-
-## Width of the downstream (head) end cut, in meters — as measured on a layout
-## drawing. Independent of the other three shape values; the perpendicular
-## width and both end splays are derived (see [method _apply_drawing_params]).
-@export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.76:
-	set(value):
-		_apply_drawing_params(maxf(0.1, value), edge_length, short_side_length, long_side_length)
-	get:
-		return size.z / cos(angle_downstream)
-
-## Length of the upstream (tail) end cut — the slanted edge along the line the
-## spur merges with or diverts from, in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var edge_length: float = 1.524:
-	set(value):
-		_apply_drawing_params(width, maxf(0.1, value), short_side_length, long_side_length)
-	get:
-		return size.z / cos(angle_upstream)
-
-## Length of the SHORT one of the two parallel sides, in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var short_side_length: float = 1.56:
-	set(value):
-		_apply_drawing_params(width, edge_length, maxf(0.0, value), long_side_length)
-	get:
-		return minf(_side_len_left(), _side_len_right())
-
-## Length of the LONG one of the two parallel sides, in meters.
-@export_custom(PROPERTY_HINT_NONE, "suffix:m") var long_side_length: float = 2.44:
-	set(value):
-		_apply_drawing_params(width, edge_length, short_side_length, maxf(0.0, value))
-	get:
-		return maxf(_side_len_left(), _side_len_right())
-
-## Mirror the footprint across the flow axis, swapping the short and long sides.
-## Derived from the splay-angle signs; nothing extra is stored.
-@export var mirrored: bool = false:
-	set(value):
-		if value == mirrored:
-			return
-		angle_upstream = -angle_upstream
-		angle_downstream = -angle_downstream
-	get:
-		var left_len: float = _side_len_left()
-		var right_len: float = _side_len_right()
-		if absf(left_len - right_len) > 1.0e-6:
-			return left_len > right_len
-		return angle_upstream < 0.0
-
-
-## Geometric side lengths including both end splays (left = -Z, right = +Z).
-func _side_len_left() -> float:
-	return size.x + size.z * 0.5 * (tan(angle_upstream) - tan(angle_downstream))
-
-
-func _side_len_right() -> float:
-	return size.x + size.z * 0.5 * (tan(angle_downstream) - tan(angle_upstream))
-
-
-## Solve the stored model (perpendicular width `size.z`, end splays, centerline
-## `size.x`) from the four drawing measurements. The parallel sides are the
-## long/short sides; `edge` is the tail cut and `w_cut` the head cut. With
-## k = long - short: E² = w² + δt², W² = w² + (δt + k)², so all four values are
-## independent and honored exactly (impossible quartets clamp to minimum width).
-func _apply_drawing_params(w_cut: float, edge: float, short_len: float, long_len: float) -> void:
-	var k: float = long_len - short_len
-	var w_perp: float
-	var delta_tail: float
-	if absf(k) < 1.0e-6:
-		# Equal sides: both cuts share one offset; the edge value wins.
-		w_perp = maxf(0.1, minf(edge, w_cut))
-		delta_tail = sqrt(maxf(0.0, edge * edge - w_perp * w_perp))
-	else:
-		delta_tail = (w_cut * w_cut - edge * edge - k * k) / (2.0 * k)
-		w_perp = sqrt(maxf(0.01, edge * edge - delta_tail * delta_tail))
-	var delta_head: float = delta_tail + k
-	# Preserve which physical side is currently the long one.
-	var flip: float = -1.0 if mirrored else 1.0
-	angle_upstream = atan(flip * delta_tail / w_perp)
-	angle_downstream = atan(flip * delta_head / w_perp)
-	size = Vector3((short_len + long_len) * 0.5, size.y, w_perp)
+		return size.z
 
 ## Belt height; drives end-pulley diameter ([code]height / 2[/code]).
 @export_range(0.05, 5.0, 0.01, "or_greater", "suffix:m") var height: float = 0.5:
@@ -153,16 +72,6 @@ func _apply_drawing_params(w_cut: float, edge: float, short_len: float, long_len
 			_running_tag.write_bit(value != 0.0)
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
-
-## Reverse the conveying direction (flow runs head to tail) without editing
-## [member speed] — keeps PLC speed tags positive.
-@export var flip_direction: bool = false:
-	set(value):
-		if value == flip_direction:
-			return
-		flip_direction = value
-		_applied_speed = INF
-		_update_flow_arrow()
 
 ## Show a floating label at the conveyor's center displaying the current speed.
 @export var show_speed_label: bool = false:
@@ -403,8 +312,7 @@ var _running_tag := OIPCommsTag.new()
 
 
 func _validate_property(property: Dictionary) -> void:
-	# The shape properties are inspector facades; only `size`
-	# (+ `angle_downstream` / `angle_upstream`) is serialized.
+	# `length`/`width`/`height` are inspector facades; only `size` is serialized.
 	var prop_name: String = property["name"]
 	if prop_name == "speed":
 		property["usage"] = PROPERTY_USAGE_NO_EDITOR if speed_in_fpm else PROPERTY_USAGE_DEFAULT
@@ -412,11 +320,8 @@ func _validate_property(property: Dictionary) -> void:
 	if prop_name == "speed_fpm":
 		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
 		return
-	if prop_name in ["width", "height", "edge_length", "short_side_length", "long_side_length", "mirrored"]:
+	if prop_name in ["length", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
-		return
-	if prop_name in ["angle_downstream", "angle_upstream"]:
-		property["usage"] = PROPERTY_USAGE_NO_EDITOR
 		return
 	if prop_name == "size":
 		property["usage"] = PROPERTY_USAGE_STORAGE
@@ -438,17 +343,6 @@ func _on_size_changed() -> void:
 	_request_rebuild()
 
 
-## Map the two requested side lengths to the stored centerline length
-## ([code]size.x[/code]) and the derived downstream splay
-## ([member angle_downstream]). The head end is the straight cut between the
-## left corner ([param left] at -Z) and the right corner ([param right] at +Z).
-func _set_side_lengths(left: float, right: float) -> void:
-	var w: float = maxf(size.z, 0.0001)
-	var center: float = (left + right) * 0.5
-	angle_downstream = atan((right - left) / w)
-	size = Vector3(center, size.y, size.z)
-
-
 func _get_resize_local_bounds(for_size: Vector3) -> AABB:
 	return AABB(
 			Vector3(0, -for_size.y, -for_size.z * 0.5),
@@ -463,17 +357,9 @@ func _get_editor_gizmo_pivot_offset() -> Vector3:
 	return Vector3(size.x * 0.5, 0.0, 0.0)
 
 
-## True footprint extents: the slanted end cuts overhang the centerline span
-## [0, size.x] by half-width times their slope. Snap features anchor here so an
-## end-snapped spur meets its neighbor at the slant corner instead of overlapping.
 var local_bbox: AABB:
 	get:
-		var hw: float = size.z * 0.5
-		var back_x: float = minf(0.0, -hw * absf(tan(angle_upstream)))
-		var front_x: float = size.x + maxf(0.0, hw * absf(tan(angle_downstream)))
-		return AABB(
-				Vector3(back_x, -size.y, -hw),
-				Vector3(front_x - back_x, size.y, size.z))
+		return _get_resize_local_bounds(size)
 
 
 func _notification(what: int) -> void:
@@ -485,7 +371,7 @@ func _notification(what: int) -> void:
 
 
 func _get_scale_warning_text() -> String:
-	return "Use `width` / `edge_length` / `short_side_length` / `long_side_length` instead of scale."
+	return "Use `length` / `width` / `height` instead of scale."
 
 
 func _get_active_resize_handle_ids() -> PackedInt32Array:
@@ -699,22 +585,24 @@ func _get_slot_geometry(index: int) -> Array[Vector3]:
 	var conv_width: float = width / float(conveyor_count)
 	var conv_half_width: float = 0.5 * conv_width
 	var conv_pos_z: float = -0.5 * width + conv_half_width + index * conv_width
-	var ds_displacement_x: float = tan(angle_downstream) * conv_pos_z
-	var us_displacement_x: float = tan(angle_upstream) * conv_pos_z
-	# Origin at tail: slot spans [0 + us_disp, centerline + ds_disp]; center is the midpoint.
-	var conv_pos_x: float = size.x * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
-	var conv_length: float = size.x + ds_displacement_x - us_displacement_x
+	var ds_contact_z_offset: float = -conv_half_width if angle_downstream > 0.0 else conv_half_width
+	var us_contact_z_offset: float = conv_half_width if angle_upstream > 0.0 else -conv_half_width
+	var ds_displacement_x: float = tan(angle_downstream) * (conv_pos_z + ds_contact_z_offset)
+	var us_displacement_x: float = tan(angle_upstream) * (conv_pos_z + us_contact_z_offset)
+	# Origin at tail: slot spans [0 + us_disp, length + ds_disp]; center is the midpoint.
+	var conv_pos_x: float = length * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
+	var conv_length: float = length + ds_displacement_x - us_displacement_x
 	return [Vector3(conv_pos_x, 0.0, conv_pos_z),
 			Vector3(conv_length, height, conv_width)]
 
 
 ## True arc extent of the side guard (origin at tail), default span for a new opening.
 func _guard_arc_bounds() -> Vector2:
-	return Vector2(0.0, size.x)
+	return Vector2(0.0, length)
 
 
 func _side_extents(side_z: float) -> Vector2:
-	var front_x: float = size.x + tan(angle_downstream) * side_z
+	var front_x: float = length + tan(angle_downstream) * side_z
 	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
 	var front_key: String = side_key + "_front"
@@ -848,20 +736,15 @@ func _rebuild_gap_fill() -> void:
 	var half_w: float = size.z * 0.5
 	var tan_ds: float = tan(angle_downstream)
 	var tan_us: float = tan(angle_upstream)
-	# Strips are rectangles ending at their center-line X, so a slanted end leaves
-	# stair-step gaps: push that face out by one half-step so each strip's inner
-	# corner stays enclosed. A straight end has no gaps — tuck the face in behind
-	# the end pulleys instead so no metal band shows at the transfer interface.
-	var conv_width: float = size.z / float(conveyor_count)
+	# Downstream: strips are rectangles ending at their center-line X; push the angled
+	# face out by one half-strip slope so each strip's inner corner stays enclosed.
+	var conv_half_width: float = 0.5 * size.z / float(conveyor_count)
+	var ds_shift: float = conv_half_width * absf(tan_ds)
+	var ds_left_x: float = size.x - half_w * tan_ds + ds_shift
+	var ds_right_x: float = size.x + half_w * tan_ds + ds_shift
 	var roller_radius: float = size.y * 0.5
-	var us_step: float = conv_width * absf(tan_us)
-	var ds_step: float = conv_width * absf(tan_ds)
-	var us_off: float = 0.5 * us_step if us_step > 0.02 else -roller_radius
-	var ds_off: float = 0.5 * ds_step if ds_step > 0.02 else -roller_radius
-	var ds_left_x: float = size.x - half_w * tan_ds + ds_off
-	var ds_right_x: float = size.x + half_w * tan_ds + ds_off
-	var us_right_x: float = half_w * tan_us - us_off
-	var us_left_x: float = -half_w * tan_us - us_off
+	var us_right_x: float = half_w * tan_us + roller_radius
+	var us_left_x: float = -half_w * tan_us + roller_radius
 	var ref_cos: float = cos(deg_to_rad(60.0))
 	var max_angle: float = maxf(absf(angle_upstream), absf(angle_downstream))
 	var y_top: float = -maxf(0.001, _GAP_FILL_DEPTH * cos(max_angle) / ref_cos)
@@ -1050,7 +933,7 @@ func _rebuild_legs() -> void:
 	if not legs_enabled or leg_model_scene == null:
 		_remove_orphan_legs(keep)
 		return
-	var specs: Array = _compute_leg_specs(size.x)
+	var specs: Array = _compute_leg_specs(length)
 	if specs.is_empty():
 		_remove_orphan_legs(keep)
 		return
@@ -1111,7 +994,7 @@ func _reposition_existing_legs() -> void:
 	if legs_normal_world.length_squared() < 1.0e-6:
 		return
 	legs_normal_world = legs_normal_world.normalized()
-	for spec: Dictionary in _compute_leg_specs(size.x):
+	for spec: Dictionary in _compute_leg_specs(length):
 		var leg: Node3D = get_node_or_null(NodePath(spec["name"])) as Node3D
 		if leg == null:
 			continue
@@ -1175,11 +1058,10 @@ func _update_flow_arrow() -> void:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
 		_flow_arrow = null
-	if size.x <= 0.0:
+	if length <= 0.0:
 		return
-	_flow_arrow = FlowDirectionArrow.create(Vector3(size.x, 0.0, width))
-	_flow_arrow.position = Vector3(size.x * 0.5, 0.2, 0.0)
-	_flow_arrow.rotation.y = PI if flip_direction else 0.0
+	_flow_arrow = FlowDirectionArrow.create(Vector3(length, 0.0, width))
+	_flow_arrow.position = Vector3(length * 0.5, 0.2, 0.0)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 	if has_meta("is_preview"):
@@ -1207,19 +1089,11 @@ func _update_speed_label() -> void:
 		label.no_depth_test = true
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.font_size = 64
+		label.font_size = 128
 		add_child(label, false, Node.INTERNAL_MODE_FRONT)
 		_speed_label = label
-	# Area centroid of the trapezoid footprint — the bbox center sits off the
-	# body when a slanted end cut overhangs far past the centerline span.
-	var hw: float = size.z * 0.5
-	var len_slope: float = tan(angle_downstream) - tan(angle_upstream)
-	var mid_slope: float = (tan(angle_downstream) + tan(angle_upstream)) * 0.5
-	var a: float = maxf(size.x, 0.001)
-	_speed_label.position = Vector3(
-			a * 0.5 + mid_slope * len_slope * hw * hw / (3.0 * a),
-			0.0,
-			len_slope * hw * hw / (3.0 * a))
+	var bbox: AABB = local_bbox
+	_speed_label.position = bbox.position + bbox.size * 0.5
 	_speed_label.rotation_degrees = Vector3(-90, 180.0 if flip_speed_label else 0.0, 0)
 	_speed_label.text = _speed_label_text()
 
@@ -1235,15 +1109,10 @@ func _physics_process(_delta: float) -> void:
 		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
-	var eff_speed: float = _effective_speed()
-	if eff_speed != _applied_speed or global_transform != _applied_velocity_xform:
-		BeltSurface.apply_velocity(_simple_conveyor_shape, eff_speed)
-		_applied_speed = eff_speed
+	if speed != _applied_speed or global_transform != _applied_velocity_xform:
+		BeltSurface.apply_velocity(_simple_conveyor_shape, speed)
+		_applied_speed = speed
 		_applied_velocity_xform = global_transform
-
-
-func _effective_speed() -> float:
-	return -speed if flip_direction else speed
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1251,7 +1120,7 @@ func _process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_belt_position = BeltSurface.advance_belt_position(
-			_belt_material, _effective_speed(), delta, _belt_position)
+			_belt_material, speed, delta, _belt_position)
 
 
 func _on_simulation_started() -> void:
