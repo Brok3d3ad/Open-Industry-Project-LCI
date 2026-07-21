@@ -585,11 +585,8 @@ func _get_slot_geometry(index: int) -> Array[Vector3]:
 	var conv_width: float = width / float(conveyor_count)
 	var conv_half_width: float = 0.5 * conv_width
 	var conv_pos_z: float = -0.5 * width + conv_half_width + index * conv_width
-	var ds_contact_z_offset: float = -conv_half_width if angle_downstream > 0.0 else conv_half_width
-	var us_contact_z_offset: float = conv_half_width if angle_upstream > 0.0 else -conv_half_width
-	var ds_displacement_x: float = tan(angle_downstream) * (conv_pos_z + ds_contact_z_offset)
-	var us_displacement_x: float = tan(angle_upstream) * (conv_pos_z + us_contact_z_offset)
-	# Origin at tail: slot spans [0 + us_disp, length + ds_disp]; center is the midpoint.
+	var ds_displacement_x: float = tan(angle_downstream) * conv_pos_z
+	var us_displacement_x: float = tan(angle_upstream) * conv_pos_z
 	var conv_pos_x: float = length * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
 	var conv_length: float = length + ds_displacement_x - us_displacement_x
 	return [Vector3(conv_pos_x, 0.0, conv_pos_z),
