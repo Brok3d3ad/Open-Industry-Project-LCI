@@ -526,10 +526,21 @@ func _update_flow_arrow() -> void:
 const _MS_TO_FPM: float = 196.850394
 
 
+## While the simulation runs the label reads the ACTUAL belt speed (the accel/decel
+## ramp output), not the commanded setpoint; in the editor it shows the setpoint.
 func _speed_label_text() -> String:
+	var shown: float = _current_speed if Simulation.is_running() else speed
 	if speed_label_fpm:
-		return "%.0f" % (speed * _MS_TO_FPM)
-	return "%.2f" % speed
+		return "%.0f" % (shown * _MS_TO_FPM)
+	return "%.2f" % shown
+
+
+## Push the current text to the label if it changed (cheap enough to call per tick).
+func _refresh_speed_label_text() -> void:
+	if _speed_label and is_instance_valid(_speed_label):
+		var text: String = _speed_label_text()
+		if _speed_label.text != text:
+			_speed_label.text = text
 
 
 func _update_speed_label() -> void:
@@ -1199,6 +1210,7 @@ func _step_speed_ramp(delta: float) -> void:
 	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
 	_recalculate_speeds()
 	_write_actual_speed(_current_speed)
+	_refresh_speed_label_text()
 
 
 ## Report the ramped speed to the PLC. Same unit/datatype convention as the
@@ -1240,6 +1252,7 @@ func _on_simulation_started() -> void:
 	_current_speed = 0.0
 	_ramp_target = 0.0
 	_recalculate_speeds()
+	_refresh_speed_label_text()
 
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
@@ -1268,6 +1281,7 @@ func _on_simulation_ended() -> void:
 	_ramp_target = 0.0
 	_write_actual_speed(0.0)
 	_recalculate_speeds()
+	_refresh_speed_label_text()
 
 
 # Belt isn't moving while paused, so publish running=false; resuming restores
