@@ -362,7 +362,6 @@ var _mesh_regeneration_needed: bool = true
 
 var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
-var _actual_speed_tag := OIPCommsTag.new()
 @export_category("Communications")
 @export var enable_comms := false
 @export var speed_tag_group_name: String
@@ -379,13 +378,6 @@ var _actual_speed_tag := OIPCommsTag.new()
 		running_tag_groups = value
 ## The tag name for the running state in the selected tag group.[br]Datatype: [code]BOOL[/code][br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]co0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
 @export var running_tag_name := ""
-@export var actual_speed_tag_group_name: String
-@export_custom(0, "tag_group_enum") var actual_speed_tag_groups: String:
-	set(value):
-		actual_speed_tag_group_name = value
-		actual_speed_tag_groups = value
-## The tag the conveyor [b]writes[/b] its actual belt speed to, following the accel/decel ramp ([member speed] stays the commanded setpoint).[br]Datatype: [code]REAL[/code] m/s, or [code]DINT[/code] fpm when [member speed_in_fpm] is on.[br][br]Format varies by protocol:[br][b]EIP:[/b] CIP tag names[br][b]Modbus:[/b] prefix+number (e.g. [code]hr0[/code])[br][b]OPC UA:[/b] full NodeId (e.g. [code]ns=2;s=MyVariable[/code] or [code]ns=2;i=12345[/code]).
-@export var actual_speed_tag_name := ""
 
 func _validate_property(property: Dictionary) -> void:
 	if property.name == "speed":
@@ -399,9 +391,7 @@ func _validate_property(property: Dictionary) -> void:
 		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
-	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
-		return
-	OIPCommsSetup.validate_tag_property(property, "actual_speed_tag_group_name", "actual_speed_tag_groups", "actual_speed_tag_name")
+	OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name")
 
 
 func _get_custom_preview_node() -> Node3D:
@@ -1115,7 +1105,6 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	actual_speed_tag_group_name = OIPCommsSetup.default_tag_group(actual_speed_tag_group_name)
 	Simulation.started.connect(_on_simulation_started)
 	Simulation.stopped.connect(_on_simulation_ended)
 	Simulation.pause_toggled.connect(_on_simulation_set_paused)
@@ -1205,19 +1194,7 @@ func _step_speed_ramp(delta: float) -> void:
 	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
 	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
 	_recalculate_speeds()
-	_write_actual_speed(_current_speed)
 	_refresh_speed_label_text()
-
-
-## Report the ramped speed to the PLC. Same unit/datatype convention as the
-## speed command tag: REAL m/s, or DINT fpm when speed_in_fpm is on.
-func _write_actual_speed(value: float) -> void:
-	if not _actual_speed_tag.is_ready():
-		return
-	if speed_in_fpm:
-		_actual_speed_tag.write_int32(roundi(value * _MS_TO_FPM))
-	else:
-		_actual_speed_tag.write_float32(value)
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1253,7 +1230,6 @@ func _on_simulation_started() -> void:
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
-		_actual_speed_tag.register(actual_speed_tag_group_name, actual_speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 
 
 func _on_simulation_ended() -> void:
@@ -1275,7 +1251,6 @@ func _on_simulation_ended() -> void:
 	_last_pushed_angular_speed = NAN
 	_current_speed = 0.0
 	_ramp_target = 0.0
-	_write_actual_speed(0.0)
 	_recalculate_speeds()
 	_refresh_speed_label_text()
 
@@ -1285,7 +1260,6 @@ func _on_simulation_ended() -> void:
 func _on_simulation_set_paused(paused: bool) -> void:
 	if _running_tag.is_ready():
 		_running_tag.write_bit(not paused and speed != 0.0)
-	_write_actual_speed(0.0 if paused else _current_speed)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
@@ -1294,8 +1268,6 @@ func _tag_group_initialized(tag_group_name_param: String) -> void:
 	_running_tag.on_group_initialized(tag_group_name_param)
 	if not was_running_ready and _running_tag.is_ready():
 		_running_tag.write_bit(speed != 0.0)
-	if _actual_speed_tag.on_group_initialized(tag_group_name_param):
-		_write_actual_speed(_current_speed)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
