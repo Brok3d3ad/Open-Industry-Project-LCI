@@ -113,6 +113,12 @@ const _GAP_FILL_DEPTH: float = 0.05
 	set(value):
 		speed = value / _MS_TO_FPM
 
+## Seconds to ramp up to a new commanded speed. 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var accel_time: float = 0.0
+
+## Seconds to ramp down to a new commanded speed (including stopping). 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var decel_time: float = 0.0
+
 @export var belt_color: Color = Color.WHITE:
 	set(value):
 		belt_color = value
@@ -1068,10 +1074,21 @@ func _update_flow_arrow() -> void:
 const _MS_TO_FPM: float = 196.850394
 
 
+## While the simulation runs the label reads the ACTUAL belt speed (the accel/decel
+## ramp output), not the commanded setpoint; in the editor it shows the setpoint.
 func _speed_label_text() -> String:
+	var shown: float = _current_speed if Simulation.is_running() else speed
 	if speed_label_fpm:
-		return "%.0f" % (speed * _MS_TO_FPM)
-	return "%.2f" % speed
+		return "%.0f" % (shown * _MS_TO_FPM)
+	return "%.2f" % shown
+
+
+## Push the current text to the label if it changed (cheap enough to call per tick).
+func _refresh_speed_label_text() -> void:
+	if _speed_label and is_instance_valid(_speed_label):
+		var text: String = _speed_label_text()
+		if _speed_label.text != text:
+			_speed_label.text = text
 
 
 func _update_speed_label() -> void:
@@ -1098,18 +1115,43 @@ func _update_speed_label() -> void:
 # Last speed/placement pushed to the body; INF forces a re-push.
 var _applied_speed: float = INF
 var _applied_velocity_xform: Transform3D
+# Actual belt speed after accel/decel ramping; drives physics and the visual scroll.
+var _current_speed: float = 0.0
+var _ramp_target: float = 0.0
+var _ramp_accel_rate: float = INF
+var _ramp_decel_rate: float = INF
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
-	if speed != _applied_speed or global_transform != _applied_velocity_xform:
-		BeltSurface.apply_velocity(_simple_conveyor_shape, speed)
-		_applied_speed = speed
+	_step_speed_ramp(delta)
+	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform:
+		BeltSurface.apply_velocity(_simple_conveyor_shape, _current_speed)
+		_applied_speed = _current_speed
 		_applied_velocity_xform = global_transform
+
+
+## Move _current_speed toward the commanded speed at the accel/decel ramp rates.
+## Each rate is sized so the full transition takes accel_time / decel_time seconds.
+func _step_speed_ramp(delta: float) -> void:
+	if speed != _ramp_target:
+		var span: float = absf(speed - _current_speed)
+		_ramp_accel_rate = INF if accel_time <= 0.0 else span / accel_time
+		_ramp_decel_rate = INF if decel_time <= 0.0 else span / decel_time
+		_ramp_target = speed
+	if _current_speed == _ramp_target:
+		return
+	# Decelerating whenever the move shrinks the speed magnitude (incl. the
+	# pre-zero-crossing half of a direction reversal).
+	var decelerating: bool = _current_speed != 0.0 \
+			and signf(_ramp_target - _current_speed) != signf(_current_speed)
+	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
+	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
+	_refresh_speed_label_text()
 
 
 # Belt-texture scroll is purely visual; advance it at frame rate, not tick rate.
@@ -1117,10 +1159,14 @@ func _process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_belt_position = BeltSurface.advance_belt_position(
-			_belt_material, speed, delta, _belt_position)
+			_belt_material, _current_speed, delta, _belt_position)
 
 
 func _on_simulation_started() -> void:
+	# Start from standstill so the belt ramps up per accel_time.
+	_current_speed = 0.0
+	_ramp_target = 0.0
+	_refresh_speed_label_text()
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
@@ -1135,6 +1181,9 @@ func _on_simulation_ended() -> void:
 	if is_instance_valid(_simple_conveyor_shape):
 		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO
 	_applied_speed = INF
+	_current_speed = 0.0
+	_ramp_target = 0.0
+	_refresh_speed_label_text()
 
 
 # Belt isn't moving while paused, so publish running=false; resuming restores
