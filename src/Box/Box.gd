@@ -79,27 +79,46 @@ func _exit_tree() -> void:
 		queue_free()
 
 
-## Physics ticks between periodic stuck-box support checks (~4x/s at 120 Hz).
+## Physics ticks between periodic stuck-box support checks (~4x/s at 120 Hz). Must stay
+## comfortably under the physics server's time-before-sleep (~0.5 s) so the latch below
+## reaches a settling box before it actually falls asleep.
 const _SUPPORT_CHECK_INTERVAL: int = 30
 var _support_check_tick: int = 0
+## True while we are holding `can_sleep` off because the surface underneath is driving.
+var _sleep_latched_off: bool = false
 
 
 func _physics_process(delta: float) -> void:
 	if _paused or not Simulation.is_running():
+		_release_sleep_latch()
 		return
 	if _rigid_body_3d.freeze:
+		_release_sleep_latch()
 		return
-	# Deterministic anti-freeze: the sleep-transition signal veto can be missed
-	# by the physics server, so any near-still box re-checks its support a few
-	# times a second and wakes itself if the surface underneath is moving.
+	# Deterministic anti-freeze. Waking a sleeping box one-shot is not enough: through the
+	# creeping start of an accel ramp the box is *genuinely* slower than the sleep
+	# threshold, so the physics server puts it straight back to sleep, and drive_body
+	# (which bails on `sleeping`) never gets a tick in which to accelerate it. So while the
+	# surface underneath is driving, take sleeping off the table entirely rather than
+	# fighting it every 30 frames. Restored the moment the box is over something stopped,
+	# so chutes, floors and idle piles still settle out of the solver.
 	_support_check_tick += 1
 	if _support_check_tick >= _SUPPORT_CHECK_INTERVAL:
 		_support_check_tick = 0
-		if (_rigid_body_3d.sleeping
-				or _rigid_body_3d.linear_velocity.length_squared() < 0.0025) \
-				and _is_on_moving_surface():
+		var driven: bool = _is_on_moving_surface()
+		if driven != _sleep_latched_off:
+			_sleep_latched_off = driven
+			_rigid_body_3d.can_sleep = not driven
+		if driven and _rigid_body_3d.sleeping:
 			_rigid_body_3d.sleeping = false
 	ConveyorTransport.drive_body(_rigid_body_3d, size, delta)
+
+
+func _release_sleep_latch() -> void:
+	if not _sleep_latched_off:
+		return
+	_sleep_latched_off = false
+	_rigid_body_3d.can_sleep = true
 
 
 ## Only boxes on a STOPPED surface (chute / floor / an idle box pile) should sleep. If we just fell
