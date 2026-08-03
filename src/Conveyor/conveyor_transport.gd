@@ -20,6 +20,12 @@ extends RefCounted
 
 ## Conveyor collision bodies join this group so the footprint rays can find them.
 const SURFACE_GROUP := &"conveyor_surface"
+## Surfaces whose conveyor is commanded to run join this group, independent of how fast
+## they happen to be moving right now. Boxes consult it instead of the instantaneous
+## surface velocity when deciding whether sleeping is safe: an accel/decel ramp can leave
+## a genuinely-driving belt creeping below any sane wake threshold for seconds, and a box
+## that sleeps there is not woken again by the surface velocity changing under it.
+const DRIVING_GROUP := &"conveyor_driving"
 ## Force cap, expressed as acceleration (m/s^2). Bounds accumulation line pressure.
 const DRIVE_MAX_ACCEL := 25.0
 ## Footprint sample count along the travel (local X) axis.
@@ -50,6 +56,16 @@ static func set_surface_blending(body: StaticBody3D, on: bool) -> void:
 		body.add_to_group(SURFACE_GROUP)
 	elif body.is_in_group(SURFACE_GROUP):
 		body.remove_from_group(SURFACE_GROUP)
+
+
+## Add/remove a conveyor surface from the commanded-to-run group (see DRIVING_GROUP).
+static func set_surface_driving(body: StaticBody3D, on: bool) -> void:
+	if body == null:
+		return
+	if on:
+		body.add_to_group(DRIVING_GROUP)
+	elif body.is_in_group(DRIVING_GROUP):
+		body.remove_from_group(DRIVING_GROUP)
 
 
 static func drive_body(body: RigidBody3D, footprint: Vector3, delta: float) -> void:

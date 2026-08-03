@@ -501,6 +501,9 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
 			_simple_conveyor_shape.owner = self
+		# Fresh body starts in neither runtime group; force the next tick to re-push.
+		_applied_driving = false
+		_applied_ramping = false
 		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:
@@ -957,6 +960,9 @@ var _current_speed: float = 0.0
 var _ramp_target: float = 0.0
 var _ramp_accel_rate: float = INF
 var _ramp_decel_rate: float = INF
+# Last commanded-to-run / mid-ramp state pushed to the surface groups.
+var _applied_driving: bool = false
+var _applied_ramping: bool = false
 
 
 func _physics_process(delta: float) -> void:
@@ -966,6 +972,21 @@ func _physics_process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_step_speed_ramp(delta)
+	_update_surface_groups()
+
+
+## Publish the two package-handling hints for this surface. See
+## BeltConveyor._physics_process for why each one matters during a ramp. This part has no
+## `velocity_blending` export, so the drive assist is engaged by the ramp alone.
+func _update_surface_groups() -> void:
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	var ramping: bool = _current_speed != _ramp_target
+	if driving == _applied_driving and ramping == _applied_ramping:
+		return
+	ConveyorTransport.set_surface_driving(_simple_conveyor_shape, driving)
+	ConveyorTransport.set_surface_blending(_simple_conveyor_shape, ramping)
+	_applied_driving = driving
+	_applied_ramping = ramping
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
@@ -1008,6 +1029,11 @@ func _on_simulation_ended() -> void:
 	_current_speed = 0.0
 	_ramp_target = 0.0
 	_update_conveyor_velocity()
+	if is_instance_valid(_simple_conveyor_shape):
+		ConveyorTransport.set_surface_driving(_simple_conveyor_shape, false)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, false)
+	_applied_driving = false
+	_applied_ramping = false
 	_refresh_speed_label_text()
 
 

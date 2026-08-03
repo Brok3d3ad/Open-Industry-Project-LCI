@@ -579,6 +579,10 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape.name = "SimpleConveyorShape"
 			add_child(_simple_conveyor_shape, false, Node.INTERNAL_MODE_FRONT)
 		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
+		# Fresh body starts in neither runtime group; force the next tick to re-push.
+		_applied_speed = INF
+		_applied_driving = false
+		_applied_ramping = false
 		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:
@@ -1115,6 +1119,9 @@ func _update_speed_label() -> void:
 # Last speed/placement pushed to the body; INF forces a re-push.
 var _applied_speed: float = INF
 var _applied_velocity_xform: Transform3D
+# Last commanded-to-run / mid-ramp state pushed to the surface groups.
+var _applied_driving: bool = false
+var _applied_ramping: bool = false
 # Actual belt speed after accel/decel ramping; drives physics and the visual scroll.
 var _current_speed: float = 0.0
 var _ramp_target: float = 0.0
@@ -1129,10 +1136,18 @@ func _physics_process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_step_speed_ramp(delta)
-	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform:
+	# See BeltConveyor._physics_process for what these two flags buy.
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	var ramping: bool = _current_speed != _ramp_target
+	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform \
+			or driving != _applied_driving or ramping != _applied_ramping:
 		BeltSurface.apply_velocity(_simple_conveyor_shape, _current_speed)
+		ConveyorTransport.set_surface_driving(_simple_conveyor_shape, driving)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending or ramping)
 		_applied_speed = _current_speed
 		_applied_velocity_xform = global_transform
+		_applied_driving = driving
+		_applied_ramping = ramping
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates.
@@ -1180,7 +1195,11 @@ func _on_simulation_ended() -> void:
 		_belt_material.set_shader_parameter("BeltPosition", _belt_position)
 	if is_instance_valid(_simple_conveyor_shape):
 		_simple_conveyor_shape.constant_linear_velocity = Vector3.ZERO
+		ConveyorTransport.set_surface_driving(_simple_conveyor_shape, false)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
 	_applied_speed = INF
+	_applied_driving = false
+	_applied_ramping = false
 	_current_speed = 0.0
 	_ramp_target = 0.0
 	_refresh_speed_label_text()

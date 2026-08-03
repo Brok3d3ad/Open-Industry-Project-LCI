@@ -352,6 +352,8 @@ var _current_speed: float = 0.0
 var _ramp_target: float = 0.0
 var _ramp_accel_rate: float = INF
 var _ramp_decel_rate: float = INF
+## Last commanded-to-run state pushed to ConveyorTransport.DRIVING_GROUP.
+var _applied_driving: bool = false
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
@@ -478,6 +480,8 @@ func _ready() -> void:
 	if not _end_body2:
 		_end_body2 = _create_end_body("EndBody2")
 		add_child(_end_body2)
+	# Fresh end bodies start outside DRIVING_GROUP; force the next tick to re-push.
+	_applied_driving = false
 	_apply_physics_material()
 
 	_frame_mesh_instance = get_node_or_null("FrameMesh") as MeshInstance3D
@@ -1159,6 +1163,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not Simulation.is_paused():
 		_step_speed_ramp(delta)
+	_update_driving_group()
 	# Only re-push the angular velocity when it actually changes — same
 	# rationale as BeltConveyor's linear case.
 	if not is_equal_approx(_angular_speed, _last_pushed_angular_speed):
@@ -1174,6 +1179,21 @@ func _physics_process(delta: float) -> void:
 			else:
 				body.constant_angular_velocity = Vector3.ZERO
 		_last_pushed_angular_speed = _angular_speed
+
+
+## Keep boxes from sleeping through the creeping start of a ramp — the surface can sit
+## below any sane wake threshold for seconds while genuinely driving. Unlike the straight
+## belt this part does NOT join the drive assist: it moves packages with
+## `constant_angular_velocity`, so it advertises no linear flow for `ConveyorTransport` to
+## sample and would only brake boxes toward zero. Curved belts stay friction-limited.
+func _update_driving_group() -> void:
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	if driving == _applied_driving:
+		return
+	_applied_driving = driving
+	ConveyorTransport.set_surface_driving(_sb, driving)
+	for body: StaticBody3D in [_end_body1, _end_body2]:
+		ConveyorTransport.set_surface_driving(body, driving)
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
@@ -1251,6 +1271,10 @@ func _on_simulation_ended() -> void:
 	_last_pushed_angular_speed = NAN
 	_current_speed = 0.0
 	_ramp_target = 0.0
+	_applied_driving = false
+	ConveyorTransport.set_surface_driving(_sb, false)
+	for body: StaticBody3D in [_end_body1, _end_body2]:
+		ConveyorTransport.set_surface_driving(body, false)
 	_recalculate_speeds()
 	_refresh_speed_label_text()
 

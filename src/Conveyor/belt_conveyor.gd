@@ -508,6 +508,9 @@ var _bodies: Array[StaticBody3D] = []
 # Last speed/placement pushed to the bodies; INF forces a re-push.
 var _applied_speed: float = INF
 var _applied_velocity_xform: Transform3D
+# Last commanded-to-run / mid-ramp state pushed to the surface groups.
+var _applied_driving: bool = false
+var _applied_ramping: bool = false
 # Actual belt speed after accel/decel ramping; drives physics and the visual scroll.
 var _current_speed: float = 0.0
 var _ramp_target: float = 0.0
@@ -847,7 +850,11 @@ func _on_simulation_ended() -> void:
 	for body: StaticBody3D in _bodies:
 		if is_instance_valid(body):
 			body.constant_linear_velocity = Vector3.ZERO
+			ConveyorTransport.set_surface_driving(body, false)
+			ConveyorTransport.set_surface_blending(body, velocity_blending)
 	_applied_speed = INF
+	_applied_driving = false
+	_applied_ramping = false
 	_current_speed = 0.0
 	_ramp_target = 0.0
 	_refresh_speed_label_text()
@@ -973,6 +980,10 @@ func _rebuild_collision() -> void:
 			add_child(body, false, Node.INTERNAL_MODE_FRONT)
 			body.owner = self
 			ConveyorTransport.set_surface_blending(body, velocity_blending)
+			# Fresh body starts in neither runtime group; force the next tick to re-push.
+			_applied_speed = INF
+			_applied_driving = false
+			_applied_ramping = false
 		body.transform = d.local_xform
 		body.physics_material_override = phys
 		var cs := body.get_node_or_null("CollisionShape3D") as CollisionShape3D
@@ -1596,11 +1607,22 @@ func _physics_process(delta: float) -> void:
 	if not Simulation.is_running() or Simulation.is_paused():
 		return
 	_step_speed_ramp(delta)
-	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform:
+	# Commanded to run: keeps boxes awake through the creeping start of a ramp.
+	# Ramping: friction alone caps package acceleration at ~mu*g (~4.9 m/s^2 on the
+	# stock belt/box materials), so steeper ramps would leave packages sliding. Joining
+	# the drive assist for the duration of the ramp carries them with the belt instead.
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	var ramping: bool = _current_speed != _ramp_target
+	if _current_speed != _applied_speed or global_transform != _applied_velocity_xform \
+			or driving != _applied_driving or ramping != _applied_ramping:
 		for body: StaticBody3D in _bodies:
 			BeltSurface.apply_velocity(body, _current_speed)
+			ConveyorTransport.set_surface_driving(body, driving)
+			ConveyorTransport.set_surface_blending(body, velocity_blending or ramping)
 		_applied_speed = _current_speed
 		_applied_velocity_xform = global_transform
+		_applied_driving = driving
+		_applied_ramping = ramping
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates.

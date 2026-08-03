@@ -133,6 +133,11 @@ func _is_on_moving_surface() -> bool:
 	var hit := space.intersect_ray(q)
 	var sb := hit.get("collider") as StaticBody3D
 	if sb != null:
+		# A conveyor that is commanded to run counts as moving even while its accel/decel
+		# ramp still has the surface below the velocity thresholds below — otherwise a box
+		# sleeps through the slow start of the ramp and the belt walks out from under it.
+		if sb.is_in_group(ConveyorTransport.DRIVING_GROUP):
+			return true
 		# Curved belts drive via constant_angular_velocity; straight ones via linear.
 		return sb.constant_linear_velocity.length() > 0.05 \
 				or sb.constant_angular_velocity.length() > 0.05
