@@ -83,6 +83,12 @@ func _exit_tree() -> void:
 ## comfortably under the physics server's time-before-sleep (~0.5 s) so the latch below
 ## reaches a settling box before it actually falls asleep.
 const _SUPPORT_CHECK_INTERVAL: int = 30
+## Interval used while the box is already asleep (~30x/s). That is the case we have to catch
+## quickly — a belt starting to move under a sleeping box — and the check costs one raycast
+## on a body the solver is otherwise ignoring. At the slow 30-tick rate a sleeping box sat
+## still for up to a quarter second after its belt began ramping, then snapped to whatever
+## speed the belt had already reached.
+const _SUPPORT_CHECK_INTERVAL_ASLEEP: int = 4
 var _support_check_tick: int = 0
 ## True while we are holding `can_sleep` off because the surface underneath is driving.
 var _sleep_latched_off: bool = false
@@ -103,7 +109,9 @@ func _physics_process(delta: float) -> void:
 	# fighting it every 30 frames. Restored the moment the box is over something stopped,
 	# so chutes, floors and idle piles still settle out of the solver.
 	_support_check_tick += 1
-	if _support_check_tick >= _SUPPORT_CHECK_INTERVAL:
+	var interval: int = _SUPPORT_CHECK_INTERVAL_ASLEEP if _rigid_body_3d.sleeping \
+			else _SUPPORT_CHECK_INTERVAL
+	if _support_check_tick >= interval:
 		_support_check_tick = 0
 		var driven: bool = _is_on_moving_surface()
 		if driven != _sleep_latched_off:
@@ -160,9 +168,14 @@ func _is_on_moving_surface() -> bool:
 		# Curved belts drive via constant_angular_velocity; straight ones via linear.
 		return sb.constant_linear_velocity.length() > 0.05 \
 				or sb.constant_angular_velocity.length() > 0.05
-	# Resting on another box: follow a moving carrier instead of sleeping on it.
+	# Resting on another box: follow a moving carrier instead of sleeping on it. A carrier
+	# that has its own sleep latched off counts as moving even while it is still creeping,
+	# so a stack on a ramping belt wakes as one unit instead of the riders sleeping through
+	# the ramp and snapping forward once the carrier finally crosses the threshold.
 	var rb := hit.get("collider") as RigidBody3D
-	return rb != null and rb.linear_velocity.length() > 0.05
+	if rb == null:
+		return false
+	return not rb.can_sleep or rb.linear_velocity.length() > 0.05
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
