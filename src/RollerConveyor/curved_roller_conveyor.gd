@@ -112,6 +112,17 @@ func _on_size_changed() -> void:
 		_sync_preview_overlay_arrow(value)
 
 ## Linear speed at [member reference_distance] in m/s.
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		# Applied on the next tick as well: the surfaces may not exist yet when
+		# this runs during scene load.
+		ConveyorTransport.set_surface_blending(_sb, value)
+		for static_body: StaticBody3D in _end_static_bodies:
+			ConveyorTransport.set_surface_blending(static_body, value)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -579,6 +590,8 @@ func _process(delta: float) -> void:
 # Last velocities pushed to the bodies; INF forces a re-push.
 var _applied_angular_speed: float = INF
 var _applied_speed: float = INF
+## Last blending state pushed to the surfaces.
+var _applied_blending: bool = false
 var _applied_velocity_xform: Transform3D
 
 
@@ -586,6 +599,7 @@ func _physics_process(_delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
+	_update_surface_groups()
 	if Simulation.is_running() and _sb:
 		if _angular_speed == _applied_angular_speed and speed == _applied_speed \
 				and global_transform == _applied_velocity_xform:
@@ -608,6 +622,23 @@ func _physics_process(_delta: float) -> void:
 			static_body.constant_linear_velocity = Vector3.ZERO
 		_applied_angular_speed = 0.0
 		_applied_speed = 0.0
+
+
+## Re-push the blending opt-in once the surfaces actually exist. The export can be
+## assigned during scene load, before `_sb` and the end rollers are resolved, and
+## the surfaces are rebuilt whenever the curve is resized.
+##
+## The deck drives packages with `constant_angular_velocity`;
+## `ConveyorTransport.surface_flow_at` resolves that spin into the tangential
+## velocity at each footprint sample, so the assist follows the arc instead of
+## reading the deck as stationary and braking toward zero.
+func _update_surface_groups() -> void:
+	if velocity_blending == _applied_blending:
+		return
+	_applied_blending = velocity_blending
+	ConveyorTransport.set_surface_blending(_sb, velocity_blending)
+	for static_body: StaticBody3D in _end_static_bodies:
+		ConveyorTransport.set_surface_blending(static_body, velocity_blending)
 
 
 func _update_all_components() -> void:
@@ -794,6 +825,9 @@ func _create_end_collision_shapes() -> void:
 			static_body = StaticBody3D.new()
 			static_body.name = "StaticBody3D"
 			end_axis.add_child(static_body)
+		# Rebuilt surfaces start outside the blending group, so re-opt them in here
+		# rather than waiting for the export to be touched again.
+		ConveyorTransport.set_surface_blending(static_body, velocity_blending)
 
 		var collision_shape := static_body.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if not collision_shape:

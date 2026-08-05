@@ -8,9 +8,8 @@ extends RefCounted
 ## and trailing edges, which are equidistant from its COM, so the normal load
 ## splits ~50/50 between the belts the entire time it straddles. The slower belt
 ## then pins the box at its speed (static friction) until the trailing edge
-## clears the seam. This samples the flow (each conveyor surface advertises it via
-## `constant_linear_velocity`) under the footprint and drives each sample point
-## toward its local belt flow.
+## clears the seam. This samples the flow (see [method surface_flow_at]) under the
+## footprint and drives each sample point toward its local belt flow.
 ##
 ## Forces are applied per-sample at their footprint positions, so the net force
 ## drives the COM toward the length-weighted flow AND the net torque yaws the box
@@ -46,6 +45,23 @@ static var debug_interval_ms := 150
 
 static var _next_log: Dictionary = {}
 static var _query: PhysicsRayQueryParameters3D
+
+
+## Surface flow at a world point, as the velocity of that point on the surface
+## treated as a rigid body: the advertised linear flow plus the tangential
+## contribution of any advertised spin about the body's own origin.
+##
+## Straight belts publish flow through [code]constant_linear_velocity[/code] and
+## leave the angular term zero, so this is identity for them. Curved decks and
+## rollers instead publish [code]constant_angular_velocity[/code] and have no
+## linear term at all — sampling only the linear component would read them as
+## stationary and drive packages toward a standstill, which is why they had to
+## stay out of the blending group before this existed.
+static func surface_flow_at(body: StaticBody3D, world_point: Vector3) -> Vector3:
+	var spin: Vector3 = body.constant_angular_velocity
+	if spin.is_zero_approx():
+		return body.constant_linear_velocity
+	return body.constant_linear_velocity + spin.cross(world_point - body.global_position)
 
 
 ## Add/remove a conveyor surface from the blending group (per-conveyor opt-in).
@@ -112,9 +128,10 @@ static func drive_body(body: RigidBody3D, footprint: Vector3, delta: float) -> v
 		var col := hit.get("collider") as StaticBody3D
 		if col != null and col.is_in_group(SURFACE_GROUP):
 			pts.append(world_pt)
-			flows.append(col.constant_linear_velocity)
+			var flow := surface_flow_at(col, world_pt)
+			flows.append(flow)
 			if debug:
-				var s := Vector2(col.constant_linear_velocity.x, col.constant_linear_velocity.z).length()
+				var s := Vector2(flow.x, flow.z).length()
 				smin = minf(smin, s)
 				smax = maxf(smax, s)
 

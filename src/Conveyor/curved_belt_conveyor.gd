@@ -102,6 +102,17 @@ func _on_size_changed() -> void:
 		_update_flow_arrow()
 		_sync_preview_overlay_arrow(value)
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		# Force the next tick to re-push: the surfaces may not exist yet when this
+		# runs during scene load.
+		_applied_blending = not value
+		for body: StaticBody3D in [_sb, _end_body1, _end_body2]:
+			ConveyorTransport.set_surface_blending(body, value)
+
 ## Linear speed at [member reference_distance] in m/s.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 2.0:
 	set(value):
@@ -354,6 +365,8 @@ var _ramp_accel_rate: float = INF
 var _ramp_decel_rate: float = INF
 ## Last commanded-to-run state pushed to ConveyorTransport.DRIVING_GROUP.
 var _applied_driving: bool = false
+## Last blending state pushed to the surfaces (velocity_blending, or a live ramp).
+var _applied_blending: bool = false
 
 @onready var _sb: StaticBody3D = get_node("StaticBody3D")
 @onready var curved_mesh: MeshInstance3D = $MeshInstance3D
@@ -587,6 +600,7 @@ func _create_end_body(body_name: String) -> StaticBody3D:
 	col.shape = cylinder
 	col.rotation.x = PI / 2.0
 	body.add_child(col)
+	ConveyorTransport.set_surface_blending(body, velocity_blending)
 	return body
 
 
@@ -1163,7 +1177,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not Simulation.is_paused():
 		_step_speed_ramp(delta)
-	_update_driving_group()
+	_update_surface_groups()
 	# Only re-push the angular velocity when it actually changes — same
 	# rationale as BeltConveyor's linear case.
 	if not is_equal_approx(_angular_speed, _last_pushed_angular_speed):
@@ -1181,19 +1195,26 @@ func _physics_process(delta: float) -> void:
 		_last_pushed_angular_speed = _angular_speed
 
 
-## Keep boxes from sleeping through the creeping start of a ramp — the surface can sit
-## below any sane wake threshold for seconds while genuinely driving. Unlike the straight
-## belt this part does NOT join the drive assist: it moves packages with
-## `constant_angular_velocity`, so it advertises no linear flow for `ConveyorTransport` to
-## sample and would only brake boxes toward zero. Curved belts stay friction-limited.
-func _update_driving_group() -> void:
+## Publish the two package-handling hints for these surfaces. See
+## BeltConveyor._physics_process for why each one matters during a ramp.
+##
+## This part drives packages with `constant_angular_velocity` rather than a linear
+## flow; `ConveyorTransport.surface_flow_at` resolves that spin into the tangential
+## velocity at each footprint sample, so the assist follows the arc instead of
+## reading the deck as stationary and braking toward zero.
+func _update_surface_groups() -> void:
 	var driving: bool = speed != 0.0 or _current_speed != 0.0
-	if driving == _applied_driving:
+	var ramping: bool = _current_speed != _ramp_target
+	var blending: bool = velocity_blending or ramping
+	if driving == _applied_driving and blending == _applied_blending:
 		return
 	_applied_driving = driving
+	_applied_blending = blending
 	ConveyorTransport.set_surface_driving(_sb, driving)
+	ConveyorTransport.set_surface_blending(_sb, blending)
 	for body: StaticBody3D in [_end_body1, _end_body2]:
 		ConveyorTransport.set_surface_driving(body, driving)
+		ConveyorTransport.set_surface_blending(body, blending)
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
@@ -1272,9 +1293,12 @@ func _on_simulation_ended() -> void:
 	_current_speed = 0.0
 	_ramp_target = 0.0
 	_applied_driving = false
+	_applied_blending = velocity_blending
 	ConveyorTransport.set_surface_driving(_sb, false)
+	ConveyorTransport.set_surface_blending(_sb, velocity_blending)
 	for body: StaticBody3D in [_end_body1, _end_body2]:
 		ConveyorTransport.set_surface_driving(body, false)
+		ConveyorTransport.set_surface_blending(body, velocity_blending)
 	_recalculate_speeds()
 	_refresh_speed_label_text()
 

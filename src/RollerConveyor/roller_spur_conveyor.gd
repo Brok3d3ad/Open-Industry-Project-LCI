@@ -56,6 +56,16 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 			_back_snap_released = true
 		_request_rebuild()
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour —
+## except during an accel/decel ramp, which engages the assist regardless.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		# Force the next tick to re-push through _update_surface_groups().
+		_applied_blending = not value
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, value)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -503,7 +513,7 @@ func _ensure_simple_collision() -> void:
 			_simple_conveyor_shape.owner = self
 		# Fresh body starts in neither runtime group; force the next tick to re-push.
 		_applied_driving = false
-		_applied_ramping = false
+		_applied_blending = false
 		_apply_physics_material()
 		var cs: CollisionShape3D = _simple_conveyor_shape.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if cs == null:
@@ -962,7 +972,7 @@ var _ramp_accel_rate: float = INF
 var _ramp_decel_rate: float = INF
 # Last commanded-to-run / mid-ramp state pushed to the surface groups.
 var _applied_driving: bool = false
-var _applied_ramping: bool = false
+var _applied_blending: bool = false
 
 
 func _physics_process(delta: float) -> void:
@@ -976,17 +986,16 @@ func _physics_process(delta: float) -> void:
 
 
 ## Publish the two package-handling hints for this surface. See
-## BeltConveyor._physics_process for why each one matters during a ramp. This part has no
-## `velocity_blending` export, so the drive assist is engaged by the ramp alone.
+## BeltConveyor._physics_process for why each one matters during a ramp.
 func _update_surface_groups() -> void:
 	var driving: bool = speed != 0.0 or _current_speed != 0.0
-	var ramping: bool = _current_speed != _ramp_target
-	if driving == _applied_driving and ramping == _applied_ramping:
+	var blending: bool = velocity_blending or _current_speed != _ramp_target
+	if driving == _applied_driving and blending == _applied_blending:
 		return
 	ConveyorTransport.set_surface_driving(_simple_conveyor_shape, driving)
-	ConveyorTransport.set_surface_blending(_simple_conveyor_shape, ramping)
+	ConveyorTransport.set_surface_blending(_simple_conveyor_shape, blending)
 	_applied_driving = driving
-	_applied_ramping = ramping
+	_applied_blending = blending
 
 
 ## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
@@ -1033,7 +1042,7 @@ func _on_simulation_ended() -> void:
 		ConveyorTransport.set_surface_driving(_simple_conveyor_shape, false)
 		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, false)
 	_applied_driving = false
-	_applied_ramping = false
+	_applied_blending = false
 	_refresh_speed_label_text()
 
 

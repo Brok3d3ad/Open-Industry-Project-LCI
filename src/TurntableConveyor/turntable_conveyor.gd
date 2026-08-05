@@ -37,6 +37,18 @@ const _ANGLE_EPSILON: float = 0.05
 	get:
 		return size.y
 
+## When on, boxes blend their speed across transitions to neighbouring opted-in
+## conveyors (see ConveyorTransport). Off keeps stock friction-only behaviour.
+##
+## The deck only advertises flow once it has finished rotating and the rollers are
+## running, so a package sitting on a turning deck is never dragged by the assist.
+@export var velocity_blending: bool = false:
+	set(value):
+		velocity_blending = value
+		# Re-pushed from _resolve_nodes too: the deck may not exist yet when this
+		# runs during scene load.
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, value)
+
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var speed: float = 1.0:
 	set(value):
 		if value == speed:
@@ -259,6 +271,7 @@ func _resolve_nodes() -> void:
 	_frame_l = get_node_or_null("Pivot/Deck/SideFrameL") as MeshInstance3D
 	_frame_r = get_node_or_null("Pivot/Deck/SideFrameR") as MeshInstance3D
 	_simple_conveyor_shape = get_node_or_null("Pivot/Deck/SimpleConveyorShape") as AnimatableBody3D
+	ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
 	_plate = get_node_or_null("Pivot/Plate") as MeshInstance3D
 	_base_mesh = get_node_or_null("Base") as MeshInstance3D
 	_base_body = get_node_or_null("Base/BaseBody") as StaticBody3D
