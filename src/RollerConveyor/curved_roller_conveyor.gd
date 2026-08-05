@@ -134,6 +134,12 @@ func _on_size_changed() -> void:
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
 
+## Seconds to ramp up to a new commanded speed. 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var accel_time: float = 0.0
+
+## Seconds to ramp down to a new commanded speed (including stopping). 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var decel_time: float = 0.0
+
 ## Show a floating label at the conveyor's center displaying the current speed.
 @export var show_speed_label: bool = false:
 	set(value):
@@ -510,10 +516,14 @@ func _update_flow_arrow() -> void:
 const _MS_TO_FPM: float = 196.850394
 
 
+## While the simulation runs the label reads the ACTUAL surface speed (the
+## accel/decel ramp output), not the commanded setpoint; in the editor it shows
+## the setpoint.
 func _speed_label_text() -> String:
+	var shown: float = _ramped_speed()
 	if speed_label_fpm:
-		return "%.0f" % (speed * _MS_TO_FPM)
-	return "%.2f" % speed
+		return "%.0f" % (shown * _MS_TO_FPM)
+	return "%.2f" % shown
 
 
 func _update_speed_label() -> void:
@@ -577,7 +587,7 @@ func _get_scale_warning_text() -> String:
 
 func _process(delta: float) -> void:
 	if running and roller_material:
-		var effective_speed := speed * (-1.0 if reverse else 1.0)
+		var effective_speed := _ramped_speed() * (-1.0 if reverse else 1.0)
 		# uv1_offset is in tiled-UV units; scale by tiles-per-wrap for true no-slip speed.
 		var bands: float = roller_material.uv1_scale.x
 		var uv_speed := bands * effective_speed / (2.0 * PI * _roller_radius())
@@ -590,30 +600,41 @@ func _process(delta: float) -> void:
 # Last velocities pushed to the bodies; INF forces a re-push.
 var _applied_angular_speed: float = INF
 var _applied_speed: float = INF
-## Last blending state pushed to the surfaces.
+## Last commanded-to-run / blending state pushed to the surfaces.
+var _applied_driving: bool = false
 var _applied_blending: bool = false
+# Actual surface speed after accel/decel ramping. Everything derived from the
+# belt's motion — the angular deck velocity, the end rollers, the roller scroll
+# and the label — reads this rather than the commanded setpoint.
+var _current_speed: float = 0.0
+var _ramp_target: float = 0.0
+var _ramp_accel_rate: float = INF
+var _ramp_decel_rate: float = INF
 var _applied_velocity_xform: Transform3D
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
-	_update_surface_groups()
+	if Simulation.is_running():
+		if not Simulation.is_paused():
+			_step_speed_ramp(delta)
+		_update_surface_groups()
 	if Simulation.is_running() and _sb:
-		if _angular_speed == _applied_angular_speed and speed == _applied_speed \
+		if _angular_speed == _applied_angular_speed and _current_speed == _applied_speed \
 				and global_transform == _applied_velocity_xform:
 			return
 		var local_up := _sb.global_transform.basis.y.normalized()
 		_sb.constant_angular_velocity = -local_up * _angular_speed
 
-		var effective_speed := speed * (-1.0 if reverse else 1.0)
+		var effective_speed := _current_speed * (-1.0 if reverse else 1.0)
 		for static_body in _end_static_bodies:
 			var end_axis: Node3D = static_body.get_parent() as Node3D
 			var velocity_dir: Vector3 = end_axis.global_transform.basis * Vector3(-1, 0, 0)
 			static_body.constant_linear_velocity = velocity_dir.normalized() * effective_speed
 		_applied_angular_speed = _angular_speed
-		_applied_speed = speed
+		_applied_speed = _current_speed
 		_applied_velocity_xform = global_transform
 	elif _applied_angular_speed != 0.0 or _applied_speed != 0.0:
 		if _sb:
@@ -633,12 +654,39 @@ func _physics_process(_delta: float) -> void:
 ## velocity at each footprint sample, so the assist follows the arc instead of
 ## reading the deck as stationary and braking toward zero.
 func _update_surface_groups() -> void:
-	if velocity_blending == _applied_blending:
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	var blending: bool = velocity_blending or _current_speed != _ramp_target
+	if driving == _applied_driving and blending == _applied_blending:
 		return
-	_applied_blending = velocity_blending
-	ConveyorTransport.set_surface_blending(_sb, velocity_blending)
+	_applied_driving = driving
+	_applied_blending = blending
+	ConveyorTransport.set_surface_driving(_sb, driving)
+	ConveyorTransport.set_surface_blending(_sb, blending)
 	for static_body: StaticBody3D in _end_static_bodies:
-		ConveyorTransport.set_surface_blending(static_body, velocity_blending)
+		ConveyorTransport.set_surface_driving(static_body, driving)
+		ConveyorTransport.set_surface_blending(static_body, blending)
+
+
+## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
+## then rederive the angular deck speed from it. Each rate is sized so the full
+## transition takes accel_time / decel_time seconds.
+func _step_speed_ramp(delta: float) -> void:
+	if speed != _ramp_target:
+		var span: float = absf(speed - _current_speed)
+		_ramp_accel_rate = INF if accel_time <= 0.0 else span / accel_time
+		_ramp_decel_rate = INF if decel_time <= 0.0 else span / decel_time
+		_ramp_target = speed
+	if _current_speed == _ramp_target:
+		return
+	# Decelerating whenever the move shrinks the speed magnitude (incl. the
+	# pre-zero-crossing half of a direction reversal).
+	var decelerating: bool = _current_speed != 0.0 \
+			and signf(_ramp_target - _current_speed) != signf(_current_speed)
+	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
+	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
+	_recalculate_speeds()
+	if _speed_label and is_instance_valid(_speed_label):
+		_speed_label.text = _speed_label_text()
 
 
 func _update_all_components() -> void:
@@ -848,9 +896,15 @@ func _create_end_collision_shapes() -> void:
 		_end_static_bodies.append(static_body)
 
 
+## Surface speed actually in effect: the accel/decel ramp output while the
+## simulation runs, the commanded setpoint in the editor.
+func _ramped_speed() -> float:
+	return _current_speed if Simulation.is_running() else speed
+
+
 func _recalculate_speeds() -> void:
 	var direction := -1.0 if reverse else 1.0
-	var effective_speed := speed * direction
+	var effective_speed := _ramped_speed() * direction
 	var outer_radius: float = inner_radius + width
 	var reference_radius: float = outer_radius - reference_distance
 	_angular_speed = 0.0 if absf(reference_radius) < 1e-6 else effective_speed / reference_radius
@@ -1122,6 +1176,11 @@ func _remove_orphans_with_prefix(prefixes: Array, keep: PackedStringArray) -> vo
 
 func _on_simulation_started() -> void:
 	running = true
+	# Start from standstill so the deck ramps up per accel_time.
+	_current_speed = 0.0
+	_ramp_target = 0.0
+	_recalculate_speeds()
+	_update_speed_label()
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
@@ -1131,10 +1190,22 @@ func _on_simulation_ended() -> void:
 	running = false
 	if _running_tag.is_ready():
 		_running_tag.write_bit(false)
+	_current_speed = 0.0
+	_ramp_target = 0.0
 	if _sb:
 		_sb.constant_angular_velocity = Vector3.ZERO
+		ConveyorTransport.set_surface_driving(_sb, false)
+		ConveyorTransport.set_surface_blending(_sb, velocity_blending)
 	for static_body in _end_static_bodies:
 		static_body.constant_linear_velocity = Vector3.ZERO
+		ConveyorTransport.set_surface_driving(static_body, false)
+		ConveyorTransport.set_surface_blending(static_body, velocity_blending)
+	_applied_driving = false
+	_applied_blending = velocity_blending
+	_applied_angular_speed = INF
+	_applied_speed = INF
+	_recalculate_speeds()
+	_update_speed_label()
 	if roller_material:
 		roller_material.uv1_offset = Vector3.ZERO
 

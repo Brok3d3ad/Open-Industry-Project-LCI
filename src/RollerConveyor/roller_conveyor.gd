@@ -80,6 +80,12 @@ signal roller_override_material_changed(material: Material)
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
 
+## Seconds to ramp up to a new commanded speed. 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var accel_time: float = 0.0
+
+## Seconds to ramp down to a new commanded speed (including stopping). 0 = instant.
+@export_range(0.0, 30.0, 0.01, "or_greater", "suffix:s") var decel_time: float = 0.0
+
 ## Show a floating label at the conveyor's center displaying the current speed.
 @export var show_speed_label: bool = false:
 	set(value):
@@ -273,6 +279,15 @@ var _metal_material: Material
 var _rollers: AbstractRollerContainer
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
+# Actual roller surface speed after accel/decel ramping; drives the physics
+# velocity, the roller scroll and the guard squaring.
+var _current_speed: float = 0.0
+var _ramp_target: float = 0.0
+var _ramp_accel_rate: float = INF
+var _ramp_decel_rate: float = INF
+# Last commanded-to-run / blending state pushed to the surface groups.
+var _applied_driving: bool = false
+var _applied_blending: bool = false
 var _transfer_plates: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
 var _derived_side_guard_openings: Array[SideGuardOpening] = []
@@ -499,10 +514,14 @@ func _update_flow_arrow() -> void:
 const _MS_TO_FPM: float = 196.850394
 
 
+## While the simulation runs the label reads the ACTUAL surface speed (the
+## accel/decel ramp output), not the commanded setpoint; in the editor it shows
+## the setpoint.
 func _speed_label_text() -> String:
+	var shown: float = _current_speed if Simulation.is_running() else speed
 	if speed_label_fpm:
-		return "%.0f" % (speed * _MS_TO_FPM)
-	return "%.2f" % speed
+		return "%.0f" % (shown * _MS_TO_FPM)
+	return "%.2f" % shown
 
 
 func _update_speed_label() -> void:
@@ -526,17 +545,55 @@ func _update_speed_label() -> void:
 	_speed_label.text = _speed_label_text()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if LegFooting.legs_poll_due(self) and LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = LegFooting.capture_leg_state(self)
+	if Simulation.is_running() and not Simulation.is_paused():
+		_step_speed_ramp(delta)
+		_update_surface_groups()
 	_align_cargo_to_guards()
+
+
+## Publish the two package-handling hints for this surface. See
+## BeltConveyor._physics_process for why each one matters during a ramp.
+func _update_surface_groups() -> void:
+	var driving: bool = speed != 0.0 or _current_speed != 0.0
+	var blending: bool = velocity_blending or _current_speed != _ramp_target
+	if driving == _applied_driving and blending == _applied_blending:
+		return
+	ConveyorTransport.set_surface_driving(_simple_conveyor_shape, driving)
+	ConveyorTransport.set_surface_blending(_simple_conveyor_shape, blending)
+	_applied_driving = driving
+	_applied_blending = blending
+
+
+## Move _current_speed toward the commanded speed at the accel/decel ramp rates,
+## then re-push the surface velocity. Each rate is sized so the full transition
+## takes accel_time / decel_time seconds.
+func _step_speed_ramp(delta: float) -> void:
+	if speed != _ramp_target:
+		var span: float = absf(speed - _current_speed)
+		_ramp_accel_rate = INF if accel_time <= 0.0 else span / accel_time
+		_ramp_decel_rate = INF if decel_time <= 0.0 else span / decel_time
+		_ramp_target = speed
+	if _current_speed == _ramp_target:
+		return
+	# Decelerating whenever the move shrinks the speed magnitude (incl. the
+	# pre-zero-crossing half of a direction reversal).
+	var decelerating: bool = _current_speed != 0.0 \
+			and signf(_ramp_target - _current_speed) != signf(_current_speed)
+	var rate: float = _ramp_decel_rate if decelerating else _ramp_accel_rate
+	_current_speed = move_toward(_current_speed, _ramp_target, rate * delta)
+	_update_conveyor_velocity()
+	if _speed_label and is_instance_valid(_speed_label):
+		_speed_label.text = _speed_label_text()
 
 
 # Roller-surface scroll is purely visual; advance it at frame rate, not tick rate.
 func _process(delta: float) -> void:
-	if running and _roller_material and speed != 0.0:
-		var roller_speed := speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else speed
+	if running and _roller_material and _current_speed != 0.0:
+		var roller_speed := _current_speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else _current_speed
 		var circumference := 2.0 * PI * _roller_radius()
 		# Multiply by tiles-per-wrap (uv1_scale.x) so the surface tracks the belt at no-slip speed.
 		var bands: float = _roller_material.uv1_scale.x
@@ -733,12 +790,12 @@ func _update_conveyor_velocity() -> void:
 	if not _simple_conveyor_shape:
 		return
 
-	if running and speed != 0.0:
+	if running and _current_speed != 0.0:
 		var local_x := _simple_conveyor_shape.global_transform.basis.x.normalized()
 		var local_y := _simple_conveyor_shape.global_transform.basis.y.normalized()
 		var angle_rad := deg_to_rad(skew_angle)
 		var cos_a := cos(angle_rad)
-		var adjusted_speed := speed / cos_a if absf(cos_a) > 1e-3 else speed
+		var adjusted_speed := _current_speed / cos_a if absf(cos_a) > 1e-3 else _current_speed
 		var velocity := local_x.rotated(local_y, angle_rad) * adjusted_speed
 		_simple_conveyor_shape.constant_linear_velocity = velocity
 	else:
@@ -787,7 +844,11 @@ func _on_roller_removed(roller: Roller) -> void:
 
 func _on_simulation_started() -> void:
 	running = true
+	# Start from standstill so the rollers ramp up per accel_time.
+	_current_speed = 0.0
+	_ramp_target = 0.0
 	_update_conveyor_velocity()
+	_update_speed_label()
 	if enable_comms:
 		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
@@ -797,7 +858,15 @@ func _on_simulation_ended() -> void:
 	running = false
 	if _running_tag.is_ready():
 		_running_tag.write_bit(false)
+	_current_speed = 0.0
+	_ramp_target = 0.0
 	_update_conveyor_velocity()
+	_update_speed_label()
+	if is_instance_valid(_simple_conveyor_shape):
+		ConveyorTransport.set_surface_driving(_simple_conveyor_shape, false)
+		ConveyorTransport.set_surface_blending(_simple_conveyor_shape, velocity_blending)
+	_applied_driving = false
+	_applied_blending = velocity_blending
 	if _roller_material:
 		_roller_material.uv1_offset = Vector3.ZERO
 
@@ -1083,7 +1152,7 @@ func _update_guard_sensors() -> void:
 # Skewed rollers are faked as a flat driven plane that can't impart yaw, so the squaring a
 # real skewed-roller bed does against a rail is applied here instead.
 func _align_cargo_to_guards() -> void:
-	if not running or speed == 0.0 or absf(skew_angle) <= 0.01 or cargo_align_strength == 0.0:
+	if not running or _current_speed == 0.0 or absf(skew_angle) <= 0.01 or cargo_align_strength == 0.0:
 		return
 	var up: Vector3 = global_transform.basis.y.normalized()
 	var wall: Vector3 = global_transform.basis.x.slide(up)
@@ -1091,7 +1160,7 @@ func _align_cargo_to_guards() -> void:
 		return
 	wall = wall.normalized()
 	var skew_rad := deg_to_rad(clampf(absf(skew_angle), 0.0, 80.0))
-	var cap: float = minf(absf(speed) * tan(skew_rad) / CARGO_ALIGN_LENGTH, CARGO_ALIGN_MAX_SPEED)
+	var cap: float = minf(absf(_current_speed) * tan(skew_rad) / CARGO_ALIGN_LENGTH, CARGO_ALIGN_MAX_SPEED)
 	for guard in _side_guards:
 		if not is_instance_valid(guard):
 			continue
