@@ -14,6 +14,10 @@ extends BeltConveyor
 ## holds its last commanded position. A fresh unit starts UP. The deck ramps
 ## toward the target angle at [member tilt_speed].
 ##
+## [member at_up_position] / [member at_down_position] are the matching feedbacks,
+## published to BOOL write tags: each goes true only once the deck has been
+## commanded that way AND finished travelling, so both read false during transit.
+##
 ## The tilt is applied as a RIGID ROTATION of the node about its tail pivot — not
 ## via the `incline` segment property. Writing `incline` regenerates the belt mesh,
 ## collision shapes, rails and guards, which at animation rate collapses the frame
@@ -31,6 +35,26 @@ extends BeltConveyor
 ## Ramp rate toward the target incline, degrees per second.
 @export_range(1.0, 90.0, 0.5, "suffix:°/s") var tilt_speed: float = 15.0
 
+## Position feedback: the deck was commanded UP and has finished travelling there
+## (read-only). Both feedbacks read false while the deck is in transit, mirroring a
+## pair of end-of-travel proximity switches — exactly one is true once settled.
+@export var at_up_position: bool = false:
+	set(value):
+		if value == at_up_position:
+			return
+		at_up_position = value
+		if _at_up_tag.is_ready():
+			_at_up_tag.write_bit(value)
+## Position feedback: the deck was commanded DOWN and has finished travelling
+## there (read-only).
+@export var at_down_position: bool = false:
+	set(value):
+		if value == at_down_position:
+			return
+		at_down_position = value
+		if _at_down_tag.is_ready():
+			_at_down_tag.write_bit(value)
+
 ## PLC flags (BOOL read tags) mirroring the two inspector toggles.
 @export var incline_tag_group_name: String
 @export_custom(0, "tag_group_enum") var incline_tag_groups: String:
@@ -41,6 +65,10 @@ extends BeltConveyor
 @export var incline_up_tag_name: String = ""
 ## BOOL read tag driving [member incline_down].
 @export var incline_down_tag_name: String = ""
+## BOOL write tag published from [member at_up_position].
+@export var at_up_tag_name: String = ""
+## BOOL write tag published from [member at_down_position].
+@export var at_down_tag_name: String = ""
 
 ## Deck tilt currently applied to the node's basis, degrees. Persisted so a scene
 ## saved mid-tilt (or left raised by the PLC) resumes from the right baseline.
@@ -60,6 +88,8 @@ const _HIDDEN_LEG_PROPS: PackedStringArray = [
 
 var _incline_up_tag := OIPCommsTag.new()
 var _incline_down_tag := OIPCommsTag.new()
+var _at_up_tag := OIPCommsTag.new()
+var _at_down_tag := OIPCommsTag.new()
 
 
 func _init() -> void:
@@ -76,7 +106,12 @@ func _physics_process(delta: float) -> void:
 	elif incline_down:
 		_target_up = false
 	var target: float = up_angle if _target_up else -down_angle
-	if absf(_tilt_deg - target) < 0.0005:
+	# Publish the feedbacks before the early-out: sitting at the target IS the
+	# in-position state, so bailing first would leave both stuck false forever.
+	var settled: bool = absf(_tilt_deg - target) < 0.0005
+	at_up_position = settled and _target_up
+	at_down_position = settled and not _target_up
+	if settled:
 		return
 	var next: float = move_toward(_tilt_deg, target, tilt_speed * delta)
 	# Orthonormalize so FP drift never trips the ResizableNode3D scale slam.
@@ -96,12 +131,22 @@ func _on_simulation_started() -> void:
 	if enable_comms:
 		_incline_up_tag.register(incline_tag_group_name, incline_up_tag_name, OIPComms.TAG_TYPE_BOOL)
 		_incline_down_tag.register(incline_tag_group_name, incline_down_tag_name, OIPComms.TAG_TYPE_BOOL)
+		_at_up_tag.register(incline_tag_group_name, at_up_tag_name, OIPComms.TAG_TYPE_BOOL)
+		_at_down_tag.register(incline_tag_group_name, at_down_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	super._tag_group_initialized(tag_group_name_param)
 	_incline_up_tag.on_group_initialized(tag_group_name_param)
 	_incline_down_tag.on_group_initialized(tag_group_name_param)
+	# Seed the feedbacks: the setters only write on a change, so without this the
+	# PLC sees nothing until the deck next moves.
+	_at_up_tag.on_group_initialized(tag_group_name_param)
+	if _at_up_tag.is_ready() and _at_up_tag.matches_group(tag_group_name_param):
+		_at_up_tag.write_bit(at_up_position)
+	_at_down_tag.on_group_initialized(tag_group_name_param)
+	if _at_down_tag.is_ready() and _at_down_tag.matches_group(tag_group_name_param):
+		_at_down_tag.write_bit(at_down_position)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
@@ -119,9 +164,16 @@ func _validate_property(property: Dictionary) -> void:
 	if property.name in _HIDDEN_LEG_PROPS:
 		property.usage = PROPERTY_USAGE_NO_EDITOR
 		return
+	if property.name == "at_up_position" or property.name == "at_down_position":
+		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+		return
 	if OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "incline_up_tag_name"):
 		return
-	OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "incline_down_tag_name")
+	if OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "incline_down_tag_name"):
+		return
+	if OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "at_up_tag_name"):
+		return
+	OIPCommsSetup.validate_tag_property(property, "incline_tag_group_name", "incline_tag_groups", "at_down_tag_name")
 #endregion
 
 
